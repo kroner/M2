@@ -7,22 +7,21 @@ newPackage(
 		  Email => "mike@math.cornell.edu", 
 		  HomePage => "http://www.math.cornell.edu/~mike/"}},
     	Headline => "a Macaulay2 package for local equations of Hilbert and other parameter schemes",
+     	PackageImports => { "FourierMotzkin" },
     	DebuggingMode => false
     	)
 
 export { 
-     findHefty,
-     findWtVec,
-     smallerMonomials, 
-     standardMonomials,
-     parameterFamily, 
-     parameterIdeal, 
-     parameterRing,
-     pruneParameterScheme, 
-     groebnerScheme
+     "findHefty",
+     "findWtVec",
+     "smallerMonomials", 
+     "standardMonomials",
+     "parameterFamily", 
+     "parameterIdeal", 
+     "parameterRing",
+     "pruneParameterScheme", 
+     "groebnerScheme"
      }
-
-needsPackage "FourierMotzkin"
 
 --load "/Users/mike/src/M2/Macaulay2/bugs/mike/minpressy.m2"
 --

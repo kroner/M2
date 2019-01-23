@@ -1,5 +1,3 @@
-needsPackage"RandomObjects"
-
 newPackage(
 	"RandomSpaceCurves",
     	Version => "0.5",
@@ -18,14 +16,14 @@ newPackage(
 		 HomePage => "http://www.math.uni-sb.de/ag/schreyer/"}
                    },
     	Headline => "Construction of random smooth space curves",
+     	PackageExports => {"RandomObjects"},
     	DebuggingMode => false
         )
 
-if not version#"VERSION" >= "1.4" then
-  error "this package requires Macaulay2 version 1.4 or newer"
+if not version#"VERSION" >= "1.8" then
+  error "this package requires Macaulay2 version 1.8 or newer"
 
-export{"nextPrime",
-     "randomSpaceCurve",
+export{"randomSpaceCurve",
      "hartshorneRaoModule",
      "constructHartshorneRaoModule",
      "certifyHartshorneRaoModule",
@@ -35,15 +33,6 @@ export{"nextPrime",
      "certifyRandomSpaceCurve",
      "spaceCurve"
      }
-
-needsPackage"RandomObjects"
-
-nextPrime=method()
-nextPrime ZZ:=n->(
-      if n <= 2 then return 2;
-      p:=if n%2==0 then n+1 else n;
-      while not isPrime p do p=p+2;
-      p)
 
 ------------------------------------
 -- Hilbert Function and Numerator --
@@ -507,27 +496,6 @@ beginDocumentation()
 
 doc ///
   Key
-    nextPrime
-    (nextPrime,ZZ)
-  Headline
-    compute the smallest prime greater than or equal to n
-  Usage
-    nextPrime n
-  Inputs
-    n: ZZ
-  Outputs
-    p: ZZ
-        the smallest prime $p \ge n$
-  Description
-     Example
-       p=nextPrime 10000
-  SeeAlso
-     isPrime
-///
-
-
-doc ///
-  Key
     "spaceCurve"
   Headline
     Generates the ideal of a random space curve of genus g and degree d
@@ -820,11 +788,6 @@ doc ///
 
 
 -------------- TESTS --------------------
-
-
-TEST ///
-     assert(nextPrime(100)==101);
-///
 
 TEST ///
      setRandomSeed("alpha");

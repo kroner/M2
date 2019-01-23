@@ -29,7 +29,7 @@ if firstTime then (
 disassemble ( () -> debug Core )
 if not firstTime then debug Core -- we need access to the private symbols (we remove the Core private dictionary later.)
 
-toString := value getGlobalSymbol if firstTime then "simpleToString" else "toString"
+toString := value' getGlobalSymbol if firstTime then "simpleToString" else "toString"
 match := X -> null =!= regex X
 
 local exe
@@ -135,7 +135,7 @@ if firstTime then (
      then re = re | "|.:/";				    -- "C:/FOO/BAR"
      re = re | "|\\$";					    -- $www.uiuc.edu:80
      re = re | "|!";					    -- !date
-     re = re | "|~/";					    -- ~/foo/bar
+     re = re | "|~";					    -- ~user/foo/bar
      isAbsolutePathRegexp := "^(" | re | ")";		    -- whether the path will work from any directory and get to the same file
      re = re | "|\\./";					    -- ./foo/bar
      re = re | "|\\.\\./";				    -- ../foo/bar
@@ -148,7 +148,7 @@ if firstTime then (
 
      copyright = (
 	  "Macaulay2, version " | version#"VERSION" | newline
-	  | "Copyright 2014 Daniel R. Grayson and Michael E. Stillman:" | newline
+	  | "Copyright 2019 Daniel R. Grayson and Michael E. Stillman:" | newline
      	  | "  source code licensed under the GNU General Public License version 2 or 3;" | newline
      	  | "  this binary code licensed under the GNU General Public License version 3." | newline
      	  -- our binary code is linked with :
@@ -162,7 +162,7 @@ if firstTime then (
 	  | "  Singular-Factory " | version#"factory version" | ", by G.-M. Greuel et al." | newline
 	  |    ( 
 	       if version#"frobby version" =!= "not present" 
-	       then ("  frobby " | version#"frobby version" | ", by B. H. Roune" | newline)
+	       then ("  Frobby " | version#"frobby version" | ", by B. H. Roune" | newline)
 	       else ""
 	       )
 	  |    ( 
@@ -182,11 +182,13 @@ if firstTime then (
 	       then "  MPIR " | version#"mpir version" | ", by Free Software Foundation et al." | newline
 	       else ""
 	       )
+          | "  Givaro " | version#"givaro version" | ", by the Givaro group" | newline
+          | "  FFLAS-FFPACK " | version#"fflas_ffpack version" | ", by the FFLAS group" | newline
      	  | "  MPFR " | version#"mpfr version" | ", by Free Software Foundation" | newline
 	  | "  BLAS and LAPACK 3.0" | ", by J. Dongarra et al." | newline
-          | "  MEMTAILOR " | version#"memtailor version" | ", by B. Roune" | newline
-          | "  MATHIC " | version#"mathic version" | ", by B. Roune and M. Stillman" | newline
-          | "  MATHICGB " | version#"mathicgb version" | ", by B. Roune and M. Stillman"
+          | "  Memtailor " | version#"memtailor version" | ", by B. Roune" | newline
+          | "  Mathic " | version#"mathic version" | ", by B. Roune and M. Stillman" | newline
+          | "  MathicGB " | version#"mathicgb version" | ", by B. Roune and M. Stillman"
 	  );
 
      use = x -> x;				  -- temporary, until methods.m2
@@ -212,10 +214,10 @@ if firstTime then (
      protect PrintNames;
      protect ReverseDictionary;
 
-     globalAssign = (s,v) -> if v =!= value s then (
-	  X := class value s;
+     globalAssign = (s,v) -> if v =!= value' s then (
+	  X := class value' s;
 	  m := lookup(GlobalReleaseHook,X);
-	  if m =!= null then m(s,value s);
+	  if m =!= null then m(s,value' s);
 	  Y := class v;
 	  n := lookup(GlobalAssignHook,Y);
 	  if n =!= null then n(s,v);
@@ -240,21 +242,24 @@ if firstTime then (
 	  else error "expected a type";
 	  );
      globalAssignment {Type,Function,GlobalDictionary,Manipulator};
-     scan((symbol true,symbol false,symbol stdio, symbol stderr), sym -> globalAssignFunction(sym, value sym));
+     scan((symbol true,symbol false,symbol stdio, symbol stderr), sym -> globalAssignFunction(sym, value' sym));
      scan(dictionaryPath, dict -> (
 	       scan(pairs dict, (nm,sym) -> (
-			 x := value sym;
+			 x := value' sym;
 			 f := lookup(GlobalAssignHook, class x);
 			 if f =!= null then f(sym,x);
 			 ))));
-     applicationDirectorySuffix = () -> (
-	  if version#"operating system" === "MacOS" then "Library/Application Support/Macaulay2/" else ".Macaulay2/"
-	  );
+     applicationDirectorySuffix = if version#"operating system" === "Darwin" then "Library/Application Support/Macaulay2/" else ".Macaulay2/";
      applicationDirectory = () -> (
-	  getenv "HOME" | "/" |
-	  if instance(applicationDirectorySuffix, Function)
-	  then applicationDirectorySuffix()
-	  else applicationDirectorySuffix
+	  if getenv "HOME" =!= ""
+	  then (
+	       getenv "HOME" | "/" |
+     	       -- we allow the user to change applicationDirectorySuffix to a string or a function
+	       if instance(applicationDirectorySuffix, Function)
+	       then applicationDirectorySuffix()
+	       else applicationDirectorySuffix
+	       )
+	  else error "environment variable HOME not set"
 	  );
 
      dumpdataFile = null;
@@ -284,7 +289,7 @@ if firstTime then (
 	       "programs" => "@programsdir@/",
 	       "program licenses" => "@licensesdir@/",
 	       "package" => "@packagesdir@/PKG/",
-	       "factory gftables" =>  "@packagesdir@/Core/factory/",
+	       "factory gftables" =>  "@gftablesdir@",
 	       "packagedoc" => "@docdir@/PKG/",
 	       "packageimages" => "@docdir@/PKG/images/",
 	       "packagetests" => "@docdir@/PKG/tests/",
@@ -308,11 +313,12 @@ base := s -> ( m := regex(".*/",s); if m === null or 0 === #m then s    else sub
 initcurrentlayout := () -> (
      issuffix := (s,t) -> t =!= null and s === substring(t,-#s);
      bindir := dir exe | "/";
-     currentLayout = (
+     currentLayout = (					    -- see also currentLayoutTable
 	  if issuffix(Layout#2#"bin","/"|bindir) then Layout#2 else
 	  if issuffix(Layout#1#"bin","/"|bindir) then Layout#1
 	  );
-     prefixDirectory = if currentLayout =!= null then substring(bindir,0,#bindir-#currentLayout#"bin");
+     prefixDirectory = if currentLayout =!= null then realpath substring(bindir,0,#bindir-#currentLayout#"bin");
+     -- we use "realpath" to produce real paths, because Cygwin-style symbolic links are not understood by native Windows applications
      if notify then stderr << "--prefixDirectory = " << prefixDirectory << endl;
      if readlink exe =!= null then (
 	  exe2 := concatPath(realpath dir exe, readlink exe);
@@ -343,7 +349,6 @@ initcurrentlayout := () -> (
      )
 
 prefixDirectory = null					    -- prefix directory, after installation, e.g., "/usr/local/"
-encapDirectory = null	   -- encap directory, after installation, if present, e.g., "/usr/local/encap/Macaulay2-0.9.5/"
 
 fullCopyright := false
 matchpart := (pat,i,s) -> substring_((regex(pat, s))#i) s
@@ -353,12 +358,12 @@ nosetup := false
 noinitfile = false
 interpreter := commandInterpreter
 
-{*
+-*
 getRealPath := fn -> (					    -- use this later if realpath doesn't work
      local s;
      while ( s = readlink fn; s =!= null ) do fn = if isAbsolutePath s then s else minimizeFilename(fn|"/../"|s);
      fn)
-*}
+*-
 
 pathsearch := e -> (
      if not isFixedExecPath e then (
@@ -406,6 +411,8 @@ usage := arg -> (
      << "    --texmacs          TeXmacs session mode" << newline
      << "    --version          print version number and exit" << newline
      << "    --no-personality   don't set the personality and re-exec M2 (linux only)" << newline
+     << "    --no-threads       don't start any additional threads (or tasks)" << newline
+     << "    --no-preload       don't load the preloaded packages" << newline;
      << "    --no-prompts       print no input prompts" << newline;
      << "    --no-randomize     don't set the random number seed based on the date" << newline
      << "    --no-readline      don't use readline" << newline;
@@ -474,6 +481,8 @@ action := hashTable {
      "--no-randomize" => arg -> arg,
      "--no-time" => arg -> arg,
      "--no-personality" => arg -> arg,
+     "--no-threads" => arg -> arg,
+     "--no-preload" => arg -> arg,
      "--no-prompts" => arg -> if phase == 3 then noPrompts(),
      "--no-readline" => arg -> arg,			    -- handled in d/stdio.d
      "--no-setup" => arg -> if phase == 1 then noloaddata = nosetup = true,
@@ -510,7 +519,7 @@ action := hashTable {
 
 valueNotify := arg -> (
      if notify then stderr << "--evaluating command line argument " << argno << ": " << format arg << endl;
-     value arg)
+     value' arg)
 
 initialPath := {}
 
@@ -522,8 +531,8 @@ action2 := hashTable {
 	  ),
      "-E" => arg -> if phase == 3 then valueNotify arg,
      "-e" => arg -> if phase == 4 then valueNotify arg,
-     "--print-width" => arg -> if phase == 3 then printWidth = value arg,
-     "--debug" => arg -> debugWarningHashcode = value arg,
+     "--print-width" => arg -> if phase == 3 then printWidth = value' arg,
+     "--debug" => arg -> debugWarningHashcode = value' arg,
      "--prefix" => arg -> if phase == 1 or phase == 3 then (
 	  if not match("/$",arg) then arg = arg | "/";
 	  prefixDirectory = arg;
@@ -552,9 +561,9 @@ processCommandLineOptions := phase0 -> (			    -- 3 passes
 	       arg := commandLine#2;
  	       -- "load" uses "./" to mean relative to the current file's directory, but right now, the current file is startup.m2.in,
 	       -- which may not even be on the user's machine.  So we convert it to an absolute path
-	       if match("^\\./",arg) then arg = toAbsolutePath arg;
+	       if match("^(\\./|\\../)",arg) then arg = toAbsolutePath arg;
 	       scriptCommandLine = drop(commandLine,2);
-	       if instance(value global load, Function) then load arg else simpleLoad arg;
+	       if instance(value' global load, Function) then load arg else simpleLoad arg;
 	       exit 0))
      else (
 	  if notify then stderr << "--phase " << phase << endl;
@@ -583,13 +592,13 @@ processCommandLineOptions := phase0 -> (			    -- 3 passes
 if firstTime then processCommandLineOptions 1
 
 exe = minimizeFilename (
-     {*
+     -*
      -- this can be a reliable way to get the executable in linux
      -- but we don't want to use it because we don't want to chase symbolic links and it does that for us
      processExe := "/proc/self/exe";
      if fileExists processExe and readlink processExe =!= null then readlink processExe
      else 
-     *}
+     *-
      if isAbsolutePath commandLine#0 then commandLine#0 else
      if isStablePath commandLine#0 then concatenate(currentDirectory()|commandLine#0)
      else pathsearch commandLine#0)
@@ -604,7 +613,7 @@ describePath := () -> (
 	  for d in path do (
 	       stderr << "--    " << d << endl;
 	       );
-	  )
+	  );
      )
 
 loadSetup := () -> (
@@ -669,21 +678,10 @@ path = (x -> select(x, i -> i =!= null)) deepSplice {
 		    	 topSrcdir|"Macaulay2/m2/",
 		    	 topSrcdir|"Macaulay2/packages/"
 			 ),
-		    topBuilddir|"Macaulay2/m2/",
-		    topBuilddir|"Macaulay2/packages/"
+		    topBuilddir|"Macaulay2/m2/"
+		    -- topBuilddir|"Macaulay2/packages/"
 		    ),
 	       prefixDirectory | replaceStrings("PKG","Core",currentLayout#"package"),
-	       prefixDirectory | currentLayout#"packages"
-	       )
-	  }
-packagepath = (x -> select(x, i -> i =!= null)) deepSplice {
-	  if prefixDirectory =!= null then (
-	       if topBuilddir =!= null then (
-		    if topSrcdir =!= null then (
-		    	 topSrcdir|"Macaulay2/packages/"
-			 ),
-		    topBuilddir|"Macaulay2/packages/"
-		    ),
 	       prefixDirectory | currentLayout#"packages"
 	       )
 	  }

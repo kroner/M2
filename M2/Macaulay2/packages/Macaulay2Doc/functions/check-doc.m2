@@ -6,7 +6,7 @@ document {
      Key => {check,(check,Package),(check,String),(check,ZZ,Package),(check,ZZ,String),[check,UserMode]},
      Headline => "perform tests of a package",
      PARA {
-     	  "It is important for package authors to provide tests to insure that the package
+     	  "It is important for package authors to provide tests to ensure that the package
      	  is functioning properly.  One provides tests using  ", TO TEST,
      	  " in the ", TO beginDocumentation, " section."
 	  },
@@ -25,9 +25,9 @@ document {
 		    }
 	       },
 	  Consequences => {
-	       "The tests in the package ", TT "P", " are run (in separate Macaulay2 processes, with the
+	       { "The tests in the package ", TT "P", " are run (in separate Macaulay2 processes, with the
 	       random number seed initialized to 0), and 
-	       any errors are reported."
+	       any errors are reported." }
 	       },     
 	  PARA {
 	       "For example, to run the tests for the LLLBases package (Lenstra-Lenstra-Lovasz bases)

@@ -2,7 +2,7 @@
 --		Copyright 1996-2002,2004 by Daniel R. Grayson
 
 newPackage(
-	"SchurRings",
+	"SchurRingsOld",
     	Version => "0.2", 
     	Date => "May 23, 2007",
     	Authors => {
@@ -13,7 +13,7 @@ newPackage(
     	DebuggingMode => false
     	)
 
-export {schurRing, SchurRing, symmRing, toS, toE, toP, jacobiTrudi, SchurRingIndexedVariableTable}
+export {"schurRing", "SchurRing", "symmRing", "toS", "toE", "toP", "jacobiTrudi", "SchurRingIndexedVariableTable"}
 -- Improve the names/interface of the following:
 --, symmRing, plethysmMap, jacobiTrudi, plethysm, cauchy, bott}
 

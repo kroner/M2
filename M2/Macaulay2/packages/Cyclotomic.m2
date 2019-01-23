@@ -26,16 +26,15 @@ newPackage(
 	Version => "1.0",
 	Date => "Februar 2012",
     	Authors => {{Name => "Thomas Kahle", 
-		  Email => "thomas-kahle@gmx.de", 
+		  Email => "thomas.kahle@jpberlin.de",
 		  HomePage => "http://thomas-kahle.de"}},
-    	Headline => "routines for cyclotomic fields",
-     	Reload=>true
+	Headline => "Routines for cyclotomic fields"
     	)
 
-export {cyclotomicField,
-        cyclotomicPoly,
-	findRootPower,
-	joinCyclotomic
+export {"cyclotomicField",
+        "cyclotomicPoly",
+	"findRootPower",
+	"joinCyclotomic"
        }
 
 ww := getSymbol "ww"

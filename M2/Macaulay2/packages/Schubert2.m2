@@ -24,7 +24,7 @@ if  schurVersion < 0.5 then protect EorH
 export { "AbstractSheaf", "abstractSheaf", "AbstractVariety", "abstractVariety", "schubertCycle'", "schubertCycle", "ReturnType",
      "AbstractVarietyMap", "adams", "Base", "blowup", "BundleRanks", "Bundles", "VarietyDimension", "Bundle",
      "TautologicalLineBundle", "ch", "chern", "ChernCharacter", "ChernClass", "ChernClassVariable", "ctop", "exceptionalDivisor", "FlagBundle",
-     "flagBundle", "projectiveBundle'", "projectiveBundle", "projectiveSpace'", "projectiveSpace", "PP'", "PP", "integral", "IntersectionRing",
+     "flagBundle", "projectiveBundle'", "projectiveBundle", "abstractProjectiveSpace'", "abstractProjectiveSpace", "integral", "IntersectionRing",
      "intersectionRing", "Rank","PullBack", "ChernClassVariableTable",
      "schur", "SectionClass", "sectionClass", "segre", "StructureMap", "TangentBundle", "tangentBundle", "cotangentBundle", "todd",
      "sectionZeroLocus", "degeneracyLocus", "degeneracyLocus2", "kernelBundle",
@@ -229,7 +229,7 @@ abstractSheaf = method(
 	  Name => null,
 	  ChernClass => null,
 	  ChernCharacter => null,
-	  Rank => null,
+	  Rank => null
 	  })
 abstractSheaf AbstractVariety := opts -> X -> (
      local ch; local rk;
@@ -624,7 +624,7 @@ flagBundle(List,AbstractSheaf) := opts -> (bundleRanks,E) -> (
 	  if rk < 2 * sum bundleRanks then (
 	       error "expected rank of bundle to be not less than the twice the sum of the bundle ranks";
 	       );
-	  bundleRanks = join(reverse bundleRanks, {rk - 2 * sum bundleRanks {* might be 0 *}}, bundleRanks);
+	  bundleRanks = join(reverse bundleRanks, {rk - 2 * sum bundleRanks -* might be 0 *-}, bundleRanks);
 	  );
      n := #bundleRanks;
      hft := {1};
@@ -763,16 +763,13 @@ projectiveBundle ZZ := opts -> n -> flagBundle({1,n},opts)
 projectiveBundle(ZZ,AbstractVariety) := opts -> (n,X) -> flagBundle({1,n},X,opts)
 projectiveBundle AbstractSheaf := opts -> E -> flagBundle({1, rank E - 1},E,opts)
 
-projectiveSpace' = method(Options => { VariableName => "h" }, TypicalValue => FlagBundle)
-projectiveSpace' ZZ := opts -> n -> flagBundle({n,1},VariableNames => {,{fixvar opts.VariableName}})
-projectiveSpace'(ZZ,AbstractVariety) := opts -> (n,X) -> flagBundle({n,1},X,VariableNames => {,{fixvar opts.VariableName}})
+abstractProjectiveSpace' = method(Options => { VariableName => "h" }, TypicalValue => FlagBundle)
+abstractProjectiveSpace' ZZ := opts -> n -> flagBundle({n,1},VariableNames => {,{fixvar opts.VariableName}})
+abstractProjectiveSpace'(ZZ,AbstractVariety) := opts -> (n,X) -> flagBundle({n,1},X,VariableNames => {,{fixvar opts.VariableName}})
 
-projectiveSpace = method(Options => { VariableName => "h" }, TypicalValue => FlagBundle)
-projectiveSpace ZZ := opts -> n -> flagBundle({1,n},VariableNames => {{fixvar opts.VariableName},})
-projectiveSpace(ZZ,AbstractVariety) := opts -> (n,X) -> flagBundle({1,n},X,VariableNames => {{fixvar opts.VariableName},})
-
-PP'  = new ScriptedFunctor from { superscript => i -> projectiveSpace' i }
-PP = new ScriptedFunctor from { superscript => i -> projectiveSpace i }
+abstractProjectiveSpace = method(Options => { VariableName => "h" }, TypicalValue => FlagBundle)
+abstractProjectiveSpace ZZ := opts -> n -> flagBundle({1,n},VariableNames => {{fixvar opts.VariableName},})
+abstractProjectiveSpace(ZZ,AbstractVariety) := opts -> (n,X) -> flagBundle({1,n},X,VariableNames => {{fixvar opts.VariableName},})
 
 bundles = method()
 bundles FlagBundle := X -> X.Bundles
@@ -1091,8 +1088,9 @@ blowup(AbstractVarietyMap) :=
      Ndual := dual N;
      PN := projectiveBundle'(Ndual, VariableNames => {,{x}}); -- x = chern(1,OO_PN(1))
      C := intersectionRing PN;
-     (BasAModule, bas, iLowerMod) := pushFwd iupper;     
+     (BasAModule, bas, iLowerMod2) := pushFwd iupper;     
      -- iLowerMod(element b of B) = one column matrix over A whose product with bas is b
+     iLowerMod := zz -> matrix(iLowerMod2(zz));
      n := numgens BasAModule;
      -- the fundamental idea: we build the Chow ring of the blowup as an algebra over A
      -- we introduce one algebra generator per basis element of B over A, and we let the first generator, E_0, play a special role:
@@ -1225,7 +1223,8 @@ extensionAlgebra(RingMap, RingElement) := opts -> (f, c) -> (
 	  if not (r == opts.Codimension) then error "Given codimension conflicts with degree of c";
 	  );
           
-     (BasAModule, Bbasis, fLowerMod) := pushFwd f;
+     (BasAModule, Bbasis, fLowerMod2) := pushFwd f;
+     fLowerMod := zz -> matrix(fLowerMod2(zz));
      n := numgens BasAModule;
      
      E := getSymbol "E"; -- I don't like this

@@ -3,7 +3,7 @@
 include ../../include/config.Makefile
 VPATH = @srcdir@
 DEPENDS = yes
-PKG_DMG = @package@-@ARCH@-@OS@-@REL@.dmg
+PKG_DMG = @package@-@ARCH@-@ISSUE@.dmg
 
 all: dmg tidy
 dmg: ../../$(PKG_DMG)
@@ -20,6 +20,7 @@ file_preparation: always
 	umask 022 ; $(MKDIR_P) files/@package@
 	umask 022 ; $(T) -C @pre_exec_prefix@ . | @TAR@ xfp - -C files/@package@
 	umask 022 ; $(T) -C @pre_prefix@ . | @TAR@ xfp - -C files/@package@
+	set -e; cd files/@package@/@tail_infodir@; for p in @PACKAGES@; do install-info --info-dir=. "$$p.info"; done
 	cp @srcdir@/ReadMe-MacOSX.rtf files/@package@
 	ln -s @package@/ReadMe-MacOSX.rtf files
 

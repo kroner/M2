@@ -1,7 +1,7 @@
 newPackage(
 	"BGG",
-    	Version => "1.4.1", 
-    	Date => "Jan 29, 2012",
+    	Version => "1.4.2", 
+    	Date => "Jan 11, 2016",
     	Authors => {
 	     {Name => "Hirotachi Abo", Email => "abo@uidaho.edu", HomePage => "http://www.webpages.uidaho.edu/~abo/"},
 	     {Name => "Wolfram Decker", Email => "decker@math.uni-sb.de", HomePage => "http://www.math.uni-sb.de/ag/decker/"},
@@ -12,6 +12,7 @@ newPackage(
 	     },
     	Headline => "Bernstein-Gelfand-Gelfand correspondence",
 	PackageExports => {"BoijSoederberg"},
+	PackageImports => {"Truncations"},
     	DebuggingMode => false
     	)
 
@@ -880,6 +881,26 @@ doc ///
     Text
       Forms a minimal free complex representing the direct image complex of $F$ in the
       derived category, where $F$ is a module, chain complex or map of modules.
+   Caveat
+    The option "Regularity" is currently not supported.
+///
+
+doc ///
+   Key
+    Regularity
+   Headline
+    Option for directImageComplex
+   Caveat
+    Currently not supported
+///
+doc ///
+   Key
+    Exterior
+   Headline
+    dual exterior algebra cached in a polynomial ring
+   Description
+    Text
+     checked for, and possibly installed, by "symmetricToExterior"
 ///
 
 doc ///
@@ -1070,6 +1091,7 @@ doc ///
 doc ///
    Key 
      universalExtension
+     (universalExtension, List, List)
    Headline
      Universal extension of vector bundles on P^1
    Usage
@@ -1249,7 +1271,7 @@ TEST///
 	  E = ZZ/32003[e_0..e_2, SkewCommutative=>true];
 	  M = coker matrix {{x_0^2, x_1^2}};
 	  m = presentation truncate(regularity M,M);
-	  assert(symExt(m,E)==map(E^{4:1},E^4,{{e_2,e_1,e_0,0},{0,e_2,0,e_0},{0,0,e_2,e_1},{3:0,e_2}}))
+	  assert(symExt(m,E)==map(E^{{1}, {1}, {1}, {1}},E^4,{{e_2, 0, 0, 0}, {e_1, e_2, 0, 0}, {e_0, 0, e_2, 0}, {0, e_0, e_1, e_2}}))
 ///
 
 TEST///
@@ -1348,13 +1370,13 @@ TEST///
   assert(betti L == ans)
 ///
 
-{*
+-*
 --I don't see why the following doesn't work. The output of the left side sure LOOKS like that on the right
 TEST///
 A = ZZ/11[a,b]
 (projectiveProduct(A,{1,1}))_0 === A[x_(0,0), x_(0,1)][x_(1,0), x_(1,1)]
 ///
-*}
+*-
 
 TEST///
 A = QQ[a,b]
@@ -1367,6 +1389,6 @@ end
 
 restart
 uninstallPackage "BGG"
-notify=true
 installPackage "BGG"
+check "BGG"
 viewHelp BGG

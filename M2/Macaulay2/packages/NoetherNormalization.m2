@@ -1,8 +1,8 @@
 --=========================================================================--
-{*
+-*
 Copyright 2010 Bart Snapp, Nathaniel Stapleton.
 This file is in the public domain.
-*} 
+*- 
 newPackage(
      "NoetherNormalization",
      Version => "0.9.3", 
@@ -31,7 +31,7 @@ newPackage(
 
 --=========================================================================--
      
-export{noetherNormalization,LimitList,RandomRange} 
+export{"noetherNormalization","LimitList","RandomRange"}
         
 --=========================================================================--
 -- initial comments: noetherNormalization takes an ideal I of a ring R

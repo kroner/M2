@@ -27,31 +27,33 @@ check-make:
 	@ echo GNU make version okay
 
 make-configure : check-autoconf configure
-configure : configure.ac config/files config/ax_func_accept_argtypes.m4 config/ax_prog_cc_for_build.m4 # aclocal.m4
+configure : configure.ac config/files config/ax_func_accept_argtypes.m4 config/ax_prog_cc_for_build.m4 config/openmp.m4 # aclocal.m4
 	@ set -x ; autoconf
 
 get-tools: usr-build/aclocal-path get-m4 get-pkg get-autoconf get-automake get-libtool usr-build/aclocal-path2 which-tools
 which-tools:
-	for i in m4 autoconf automake; do which $$i ; $$i --version | head -1 ; done
-	cat usr-build/aclocal-path
-	cat usr-build/aclocal-path2
-	aclocal --print
+	@ for i in m4 autoconf automake libtool; \
+		do echo $$i: ; which $$i ; $$i --version | head -1 ; done
+	@ echo aclocal-path:; cat usr-build/aclocal-path
+	@ echo aclocal-path2:; cat usr-build/aclocal-path2
+	@ echo aclocal_--print:; aclocal --print
 usr-build/aclocal-path:; echo export ACLOCAL_PATH:="`aclocal --print-ac-dir`":'$$(ACLOCAL_PATH)' >$@
 usr-build/aclocal-path2:; echo export ACLOCAL_PATH:="`usr-build/bin/aclocal --print-ac-dir`":'$$(ACLOCAL_PATH)' >$@
 get-m4:
-	$(MAKE) -C usr-build -f Makefile.pkg LIBNAME=m4 VERSION=1.4.17
+	$(MAKE) -C usr-build -f Makefile.pkg LIBNAME=m4 VERSION=1.4.18
 get-autoconf:get-m4
 	$(MAKE) -C usr-build -f Makefile.pkg LIBNAME=autoconf VERSION=2.69
 get-automake:get-autoconf
-	$(MAKE) -C usr-build -f Makefile.pkg LIBNAME=automake VERSION=1.14.1
+	$(MAKE) -C usr-build -f Makefile.pkg LIBNAME=automake VERSION=1.16
 get-libtool:get-automake
-	$(MAKE) -C usr-build -f Makefile.pkg LIBNAME=libtool VERSION=2.4.2
+	$(MAKE) -C usr-build -f Makefile.pkg LIBNAME=libtool VERSION=2.4.6
 get-pkg: usr-build/share/aclocal/pkg.m4
 usr-build/aclocal-path2:get-automake
 usr-build/share/aclocal/pkg.m4: usr-build/pkg.m4
 	if [ ! -d usr-build/share ] ; then mkdir usr-build/share ; fi
 	if [ ! -d usr-build/share/aclocal ] ; then mkdir usr-build/share/aclocal ; fi
 	cp $^ $@
+clean-tools:; rm -rf usr-build/aclocal-path usr-build/aclocal-path2 usr-build/bin usr-build/include usr-build/lib usr-build/share usr-build/src usr-build/.compiled-* usr-build/.configured-* usr-build/.installed-*  usr-build/.patched-* usr-build/.untarred-*
 
 autoconf-absent : autoconf-absent-msg autoconf-msg 
 autoconf-absent-msg :
@@ -133,6 +135,7 @@ count count-source-code-lines:
 	-name BUILD -prune -false -o \
 	-name .svn -prune -false -o \
 	-name bugs -prune -false -o \
+	-name submodules -prune -false -o \
 	-name autoconf-\* -prune -false -o \
 	-name regex -prune -false -o \
 	-name examples -prune -false -o \

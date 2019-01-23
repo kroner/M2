@@ -30,30 +30,16 @@ expression PolynomialRing := R -> (
      if hasAttribute(R,ReverseDictionary) then return expression getAttribute(R,ReverseDictionary);
      k := last R.baseRings;
      T := if (options R).Local === true then List else Array;
-     (expression if hasAttribute(k,ReverseDictionary) then getAttribute(k,ReverseDictionary) else k) (new T from (monoid R).generatorExpressions)
+     (expression k) (new T from R.generatorExpressions)
      )
 
 describe PolynomialRing := R -> (
      k := last R.baseRings;
-     net ((expression if hasAttribute(k,ReverseDictionary) then getAttribute(k,ReverseDictionary) else k) (expressionMonoid monoid R)))
+     Describe (expression k) (expressionMonoid monoid R)) -- not describe k, we only expand one level
+--toExternalString PolynomialRing := R -> toString describe R;
 toExternalString PolynomialRing := R -> (
      k := last R.baseRings;
      toString ((expression if hasAttribute(k,ReverseDictionary) then getAttribute(k,ReverseDictionary) else k) (expression monoid R)))
-
-tex PolynomialRing := R -> "$" | texMath R | "$"	    -- silly!
-
-texMath PolynomialRing := R -> (
-     if R.?tex then R.tex
-     else if hasAttribute(R,ReverseDictionary) then "\\text{" | toString getAttribute(R,ReverseDictionary)  | "}"
-     else (texMath last R.baseRings)|(texMath expression monoid R)
-     )
-
-net PolynomialRing := R -> (
-     if hasAttribute(R,ReverseDictionary) then toString getAttribute(R,ReverseDictionary)
-     else net expression R)
-toString PolynomialRing := R -> (
-     if hasAttribute(R,ReverseDictionary) then toString getAttribute(R,ReverseDictionary)
-     else toString expression R)
 
 degreeLength PolynomialRing := (RM) -> degreeLength RM.FlatMonoid
 
@@ -265,20 +251,23 @@ Ring OrderedMonoid := PolynomialRing => (			  -- no memoize
 	       numerator RM := f -> f * denominator f;
 	       );
 	  factor RM := opts -> f -> (
-	       c := 1_R; ff:=f;
+	       c := 1_R; 
 	       if (options RM).Inverses then (
-		   minexps:=min \ transpose exponents f;
-		   ff=f*RM_(-minexps); -- get rid of monomial in factor if f Laurent polynomial
+        	   minexps:=min\transpose apply(toList (rawPairs(raw RM.basering,raw f))#1,m->exponents(RM.numallvars,m));
+		   f=f*RM_(-minexps); -- get rid of monomial in factor if f Laurent polynomial
 		   c=RM_minexps;
 		   );
-	       (facs,exps) := rawFactor raw ff;	-- example value: ((11, x+1, x-1, 2x+3), (1, 1, 1, 1)); constant term is first, if there is one
-	       conv := x->substitute(x,QQ);
-	       if instance(RM.basering,GaloisField) then conv = x-> substitute(lift(x,ambient(RM.basering)),QQ);
+	       (facs,exps) := rawFactor raw f;	-- example value: ((11, x+1, x-1, 2x+3), (1, 1, 1, 1)); constant term is first, if there is one
+	       leadCoeff := x->( -- iterated leadCoefficient
+		   R:=ring x;
+		   if class R === PolynomialRing then leadCoeff leadCoefficient x else
+		   if class R === QuotientRing or class R === GaloisField then leadCoeff lift(x,ambient R) else
+    	    	   x);
      	       facs = apply(#facs, i -> (
-		       pp:=new RM from facs#i; 
-		       if conv(leadCoefficient pp) > 0 then pp else (if odd(exps#i) then c=-c; -pp)
+		       p:=new RM from facs#i;
+		       if leadCoeff p >= 0 then p else (if odd(exps#i) then c=-c; -p)
 		       ));
-	       if liftable(facs#0,R) then (
+    	       if liftable(facs#0,RM.basering) then (
 		    -- factory returns the possible constant factor in front
 	       	    assert(exps#0 == 1);
 		    c = c*(facs#0);

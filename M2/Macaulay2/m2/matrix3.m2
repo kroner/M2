@@ -16,7 +16,7 @@ pushOptions := new OptionTable from {
 	  UseHilbertFunction => true,  -- if possible
 	  StopBeforeComputation => false,
 	  DegreeLimit => {},
-	  PairLimit => infinity,
+	  PairLimit => infinity
 	  -- unused options:
 	  -- Strategy => NonLinear,            -- use the best choice
 	  -- BasisElementLimit => infinity,  -- number of generators of GB in the subring
@@ -77,7 +77,7 @@ pushNonLinear := opts -> (f,M) -> (				    -- this returns the presentation matr
 	 )
     )
 
-{*
+-*
 pushLinear := opts -> (f,M) -> (
     -- assumptions here:
     -- (a) f is homogeneous linear, and the linear forms are independent
@@ -109,10 +109,11 @@ pushLinear := opts -> (f,M) -> (
     mapback := map(S, R1, map(S^1, S^n1, 0) | submatrix(vars S, {0..n-1}));
     mapback g
     )
-*}
+*-
 
 kernel Matrix := Module => opts -> (cacheValue symbol kernel) ((m) -> (
 	  N := source m;
+	  if m == 0 then return N;
 	  P := target m;
 	  if m.?RingMap then (
 	       f := m.RingMap;

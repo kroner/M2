@@ -1572,24 +1572,50 @@ export mapkeys(f:Expr,o:HashTable):Expr := (
 	  while true do (
 	       if p == p.next then break;
 	       newkey := applyEE(f,p.key);
-	       if newkey == nullE then return buildErrorPacket("null key encountered"); -- remove soon!!!
 	       when newkey is Error do return newkey else nothing;
 	       when storeInHashTableNoClobber(x,newkey,p.value)
 	       is err:Error do return Expr(err) else nothing;
 	       p = p.next;
 	       ));
      Expr(sethash(x,o.Mutable)));
+export mapkeysmerge(f:Expr,o:HashTable,g:Expr):Expr := (
+     x := newHashTable(o.Class,o.parent);
+     x.beingInitialized = true;
+     foreach bucket in o.table do (
+	  p := bucket;
+	  while true do (
+	       if p == p.next then break;
+	       newkey := applyEE(f,p.key);
+	       when newkey is Error do return newkey else nothing;
+	       h := hash(newkey);
+	       val := lookup1(x,newkey,h);
+	       if val != notfoundE then (
+		  t := applyEEE(g,val,p.value);
+		  when t is err:Error do (
+			      if err.message != continueMessage then return t else remove(x,newkey); 
+			      -- in case "continue" is executed in g,  remove the key
+			      	   )
+			      else (
+				   storeInHashTable(x,newkey,h,t);
+				   )
+		  )
+	       else (
+		     storeInHashTable(x,newkey,h,p.value);
+	       );
+	       p = p.next;
+	       ));
+     Expr(sethash(x,o.Mutable)));
 mapkeysfun(e:Expr):Expr := (
      when      e is a:Sequence do
-     if        length(a) == 2
+     if        length(a) == 2 || length(a) == 3
      then when a.0 is o:HashTable 
      do        
      if        o.Mutable
      then      WrongArg("an immutable hash table")
-     else      mapkeys(a.1,o)
+     else      if length(a) == 2 then mapkeys(a.1,o) else mapkeysmerge(a.1,o,a.2)
      else      WrongArg(1,"a hash table")
-     else      WrongNumArgs(2)
-     else      WrongNumArgs(2));
+     else      WrongNumArgs(2,3)
+     else      WrongNumArgs(2,3));
 setupfun("applyKeys",mapkeysfun);
 
 export mapvalues(f:Expr,o:HashTable):Expr := (
@@ -1636,9 +1662,7 @@ merge(e:Expr):Expr := (
 	  if length(v) != 3 then return WrongNumArgs(3);
 	  g := v.2;
 	  when v.0 is x:HashTable do
-	  if x.Mutable then WrongArg("an immutable hash table") else
 	  when v.1 is y:HashTable do
-	  if y.Mutable then WrongArg("an immutable hash table") else 
 	  if length(x.table) >= length(y.table) then (
 	       z := copy(x);
 	       z.Mutable = true;
@@ -1660,14 +1684,13 @@ merge(e:Expr):Expr := (
 			      storeInHashTable(z,q.key,q.hash,q.value);
 			      );
 			 q = q.next));
-	       mut := false;
-	       if x.Class == y.Class && x.parent == y.parent then (
-		    z.Class = x.Class;
+	       mut := x.Mutable && y.Mutable;
+	       if x.parent == y.parent then (
+		    z.Class = commonAncestor(x.Class,y.Class);
 		    z.parent = x.parent;
-		    mut = x.Mutable;
 		    )
 	       else (
-		    z.Class = hashTableClass;
+		    if mut then z.Class = mutableHashTableClass else z.Class = hashTableClass;
 		    z.parent = nothingClass);
 	       Expr(sethash(z,mut)))
 	  else (
@@ -1691,16 +1714,14 @@ merge(e:Expr):Expr := (
 			      storeInHashTable(z,q.key,q.hash,q.value);
 			      );
 			 q = q.next));
-	       mut := false;
-	       if x.Class == y.Class && x.parent == y.parent then (
-		    z.Class = x.Class;
+	       mut := x.Mutable && y.Mutable;
+	       if x.parent == y.parent then (
+		    z.Class = commonAncestor(x.Class,y.Class);
 		    z.parent = x.parent;
-		    mut = x.Mutable;
 		    )
 	       else (
-		    z.Class = hashTableClass;
-		    z.parent = nothingClass;
-		    );
+		    if mut then z.Class = mutableHashTableClass else z.Class = hashTableClass;
+		    z.parent = nothingClass);
 	       Expr(sethash(z,mut)))
 	  else WrongArg(2,"a hash table")
 	  else WrongArg(1,"a hash table"))

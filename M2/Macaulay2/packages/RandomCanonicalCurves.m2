@@ -1,4 +1,3 @@
-needsPackage"RandomObjects"
 newPackage(
 	"RandomCanonicalCurves",
     	Version => "0.6",
@@ -11,6 +10,8 @@ newPackage(
 		     HomePage => "http://www.crcg.de/wiki/User:Bothmer"}
                    },
     	Headline => "Construction of random smooth canonical curves up to genus 14",
+     	PackageImports => {"Truncations","RandomSpaceCurves","RandomPlaneCurves","RandomGenus14Curves"},
+     	PackageExports => {"RandomObjects"},
     	DebuggingMode => false
         )
 
@@ -26,12 +27,6 @@ undocumented {
      randomCanonicalCurve,
      certifyCanonicalCurve}
 
-needsPackage"RandomObjects"
-needsPackage"RandomSpaceCurves"
-needsPackage"RandomPlaneCurves"
-needsPackage"RandomGenus14Curves"
-
-
 randomCanonicalModelOfPlaneCurve = method(Options => {Certify => false})
 
 -- input:
@@ -41,7 +36,7 @@ randomCanonicalModelOfPlaneCurve = method(Options => {Certify => false})
 -- output:
 --    I Ideal of R describing a canonical model
 randomCanonicalModelOfPlaneCurve (ZZ,ZZ,Ring) := opt -> (d,g,R) -> (
-	  x := local x;
+     x -> (
 	  S := (coefficientRing R)[x_0..x_2];
 	  delta:=binomial(d-1,2)-g;
 	  J:=(random nodalPlaneCurve)(d,delta,S,Certify=>opt.Certify,Attempts=>1);
@@ -50,7 +45,8 @@ randomCanonicalModelOfPlaneCurve (ZZ,ZZ,Ring) := opt -> (d,g,R) -> (
 	  SJ:=S/J;
 	  phi:=map(SJ,R,substitute(KC,SJ));
 	  I:=ideal mingens ker phi;
-	  return I);
+	  return I)
+     ) (x := local x) -- this construction prevents a memory allocation cycle involving local frames for the interpreter
 
 randomCanonicalModelOfSpaceCurve = method(Options => {Certify => false})
 

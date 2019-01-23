@@ -35,7 +35,6 @@ document {
 	      TO "conditional execution",
 	      TO "while",
 	      TO "for",
-	      TO "mapping over lists",
 	      TO "mapping over hash tables",
 	      TO "error handling",
 	      TO "catch",
@@ -333,7 +332,7 @@ document {
 	  "x_10 .. x_20",
 	  "x_(1,1) .. x_(2,3)",
 	  },
-     "Values can be assigned to these variables with ", TO "_", ".",
+     "Values can be assigned to these variables with ", TO "=", ".",
      EXAMPLE {
 	  "y_10 = 555;",
 	  "y_10",
@@ -361,9 +360,8 @@ document {
 document {
      Key => "using functions",
      "There are many functions in Macaulay2 that do various things.  You can
-     get a brief indication of what a function does by typing its name.",
-     EXAMPLE "sin",
-     "In this case, we see that the function ", TO "sin", " takes a single argument
+     get a brief indication of what a function does by typing a ", TT "?", " before
+     its name.  In this case, one would see that the function ", TO "sin", " takes a single argument
      ", TT "x", ".  We apply a function to its argument by typing them in adjacent
      positions.  It is possible but not necessary to place parentheses around
      the argument.",
@@ -401,7 +399,7 @@ document {
      we provide the names of the parameters to the function, and to the 
      right we provide the body of the function, an expression involving
      those parameters whose value is to be computed when the function 
-     is applied.  Let's illustrate this by makint a function for squaring 
+     is applied.  Let's illustrate this by making a function for squaring 
      numbers and calling it ", TT "sq", ".",
      EXAMPLE {
 	  "sq = i -> i^2",
@@ -431,13 +429,13 @@ document {
 	  },
      "Code that implements composition of functions is easy to write, because
      functions can create new functions and return them.  We illustrate
-     this by writing a function called ", TT "compose", " that will
+     this by writing a function called ", TT "comp", " that will
      compose two functions, just as the operator ", TO "@@", " did
      above.",
      EXAMPLE {
-	  "compose = (f,g) -> x -> f(g(x))",
-	  "sincos = compose(sin,cos)",
-	  "cossin = compose(cos,sin)",
+	  "comp = (f,g) -> x -> f(g x)",
+	  "sincos = comp(sin,cos)",
+	  "cossin = comp(cos,sin)",
 	  "sincos 2.2",
 	  "cossin 2.2",
 	  },

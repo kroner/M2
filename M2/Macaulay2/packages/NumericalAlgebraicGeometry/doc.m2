@@ -1,3 +1,4 @@
+
 refKroneLeykin := "R. Krone and A. Leykin, \"Numerical algorithms for detecting embedded components.\", arXiv:1405.7871"
 refBeltranLeykin := "C. Beltran and A. Leykin, \"Certified numerical homotopy tracking\", Experimental Mathematics 21(1): 69-83 (2012)" 
 refBeltranLeykinRobust := "C. Beltran and A. Leykin, \"Robust certified numerical homotopy tracking\", Foundations of Computational Mathematics 13(2): 253-295 (2013)" 
@@ -16,8 +17,20 @@ document {
      "The package ", TO "NumericalAlgebraicGeometry", ", also known as ", 
      EM "NAG4M2 (Numerical Algebraic Geometry for Macaulay2)", 
      ", implements methods of polynomial homotopy continuation                                                                                                  
-     to solve systems of polynomial equations and describe positive-dimensional complex algebraic varieties. ", 
-     
+     to solve systems of polynomial equations, ",
+     EXAMPLE lines ///
+R = CC[x,y,z];
+F = {x^2+y^2+z^2-1, y-x^2, z-x^3};
+s = solveSystem F 
+realPoints s
+///,
+     "and describe positive-dimensional complex algebraic varieties, ",
+     EXAMPLE lines ///
+R = CC[x,y,z];
+sph = x^2+y^2+z^2-1; 
+I = ideal {x*sph*(y-x^2), sph*(z-x^3)};
+numericalIrreducibleDecomposition I 
+///,      
      PARA {"Basic types (such as ", TO Point, " and ", TO "WitnessSet", ") are defined in the package ", TO NAGtypes, "."},
      
      HEADER3 "Basic functions:",
@@ -30,7 +43,7 @@ document {
      	 TO sample,
      	 TO (isSubset,NumericalVariety,NumericalVariety),
 	 },
-     "Some of the basic computations can be outsourced to ", TO "Bertini", " and ", TO "PHCpack", 
+     "Optionally, the user may outsource some basic routines to ", TO "Bertini", " and ", TO "PHCpack", 
      " (look for ", TO Software, " option).",
      
      HEADER3 "Service functions:",
@@ -74,13 +87,15 @@ document {
 	Key => {setDefault, 1:(setDefault), Attempts, [setDefault, Attempts], 
 	     SingularConditionNumber, [setDefault, SingularConditionNumber], 
 	     [refine, SingularConditionNumber],  [track,SingularConditionNumber],
+	     [setDefault,Precision],
 	     getDefault, (getDefault,Symbol)},
 	Headline => "set/get the default parameters for continuation algorithms",
 	Usage => "setDefault(p1=>v1, p2=>v2, ...), v = getDefault p",
 	Inputs => { {TT "p, p1, p2", ", ", TO "Symbol", "(s), the name(s) of parameter(s)"},
 	     	  Attempts => {" (meaning Attempts = ", toString DEFAULT.Attempts, "). The maximal number of attempts (e.g., to make a random regular homotopy)."},
 		  SingularConditionNumber => {" (meaning SingularConditionNumber = ", toString DEFAULT.SingularConditionNumber, "). Matrix is considered to be singular 
-		       if its condition number is greater than this value."}
+		      if its condition number is greater than this value."},
+		  Precision =>{" (meaning bits of precision)"}		      	   
 		  },
 	Outputs => {
 	     {TT "setDefault", " returns ", TO null, "."}, 
@@ -100,30 +115,38 @@ document {
 document { Key => {AffinePatches, [track,AffinePatches], [setDefault,AffinePatches], DynamicPatch, 
 	     SLP, [track,SLP], [setDefault,SLP], HornerForm, CompiledHornerForm, 
 	     SLPcorrector, SLPpredictor, [track,SLPcorrector], [setDefault,SLPcorrector], 
-	     [track,SLPpredictor], [setDefault,SLPpredictor]},
+	     [track,SLPpredictor], [setDefault,SLPpredictor],
+	     --[trackSegment,AffinePatches], [trackSegment,SLP], [trackSegment,SLPcorrector], [trackSegment,SLPpredictor]
+	     },
      	Headline => "reserved for developers"
      	} 
 
 document {
 	Key => {(solveSystem, List),solveSystem,(solveSystem,PolySystem)},
-	Headline => "solve a square system of polynomial equations",
+	Headline => "solve a system of polynomial equations",
 	Usage => "s = solveSystem F",
 	Inputs => { "F"=>"contains polynomials with complex coefficients" },
 	Outputs => { "s"=>{"contains all complex solutions to the system ", TT "F=0" }},
-	"Solve a system of polynomial equations using homotopy continuation methods. (See ", TO track, " for more optional arguments.)",
-     	PARA {"The system is assumed to be square (number of equations = number of variables) 
-	     and to have finitely many solutions."},
+	"Solve a system of polynomial equations using homotopy continuation methods.",
+     	PARA {},
 	EXAMPLE lines ///
 R = CC[x,y];
 F = {x^2+y^2-1, x*y};
 solveSystem F 
      	///,
-     	PARA {},
-	"The output (produced by ", TO track, " with default options) contains all ", TO2{Point,"points"}, 
-	" obtained at the end of homotopy paths when tracking starting at the ", TO totalDegreeStartSystem, ". ",
-	"In particular, this means that solving a system that 
-	has fewer than Bezout bound many solutions will produce 
-	points that are not marked as regular. See ", TO track, " for detailed examples. "
+	EXAMPLE lines ///
+R = CC[x,y];
+F = {x^2+y^2-1, x*y, x*(y+1)};
+solveSystem F 
+	///,
+     	PARA {"The system is assumed to have finitely many solutions. If it is not square (number of equations = number of variables), ", 
+	    TO squareUp, " is applied and solutions to the original system are then picked out from the resulting (larger) set of solutions."},
+	PARA {"The output (produced by ", TO track, " with default options) contains all ", TO2{Point,"points"}, 
+	    " obtained at the end of homotopy paths when tracking starting at the ", TO totalDegreeStartSystem, ". ",
+	    "In particular, this means that solving a system that 
+	    has fewer than Bezout bound many solutions will produce 
+	    points that are not marked as regular. See ", TO track, " for detailed examples. "
+	    }
 	}
 
 
@@ -148,10 +171,20 @@ document { Key => {"numerical homotopy tracking options",
 	[refine,ErrorTolerance], [setDefault,ErrorTolerance], 
 	[refine, ResidualTolerance], [setDefault,ResidualTolerance],
 	Iterations, Bits, ErrorTolerance, ResidualTolerance,
+	-- solveSystem
 	[solveSystem,CorrectorTolerance], [solveSystem,EndZoneFactor], [solveSystem,gamma], [solveSystem,InfinityThreshold], 
 	[solveSystem,maxCorrSteps], [solveSystem,Normalize], [solveSystem,numberSuccessesBeforeIncrease],
 	[solveSystem,Predictor], [solveSystem,Projectivize], [solveSystem,SingularConditionNumber],
-	[solveSystem,stepIncreaseFactor], [solveSystem,tDegree], [solveSystem,tStep], [solveSystem,tStepMin]
+	[solveSystem,stepIncreaseFactor], [solveSystem,tDegree], [solveSystem,tStep], [solveSystem,tStepMin],
+	[solveSystem,Precision],[solveSystem,ResidualTolerance],
+	-*
+	-- trackSegment
+	[trackSegment,CorrectorTolerance], [trackSegment,EndZoneFactor], [trackSegment,gamma], [trackSegment,InfinityThreshold], 
+	[trackSegment,maxCorrSteps], [trackSegment,Normalize], [trackSegment,numberSuccessesBeforeIncrease],
+	[trackSegment,Predictor], [trackSegment,Projectivize], [trackSegment,SingularConditionNumber],
+	[trackSegment,stepIncreaseFactor], [trackSegment,tDegree], [trackSegment,tStep], [trackSegment,tStepMin],
+	[trackSegment,MultistepDegree], [trackSegment,NoOutput]
+	*-
 	},
     Headline => "options for core functions of Numerical Algebraic Geometry",
     UL apply({
@@ -181,7 +214,10 @@ document { Key => {"numerical homotopy tracking options",
 	Iterations => {" (default Iterations = ", toString DEFAULT.Iterations, "). Number of refining iterations of Newton's method."}, 
 	Bits => {" (default Bits = ", toString DEFAULT.Bits, "). Number of bits of precision."}, 
 	ErrorTolerance => {" (default ErrorTolerance = ", toString DEFAULT.ErrorTolerance, "). A bound on the desired estimated error."},
-	ResidualTolerance => {" (default ResidualTolerance = ", toString DEFAULT.ResidualTolerance, "). A bound on desired residual."}
+	ResidualTolerance => {" (default ResidualTolerance = ", toString DEFAULT.ResidualTolerance, "). A bound on desired residual."},
+	Precision => {" (default Precision = ", toString DEFAULT.Precision, "). Precision of the floating-point numbers used in computation. If set to ", 
+	    TO "infinity", " the precision in homotopy continuation adapts according to numerical conditioning. ", 
+	    "The other popular setting, ", TT "DoublePrecision", ", forces fast arithmetic and linear algebra in standard precision. "}
     	}, 
         item -> {TT "[", TT toString item#0, TT "]: "} | item#1 
 	)
@@ -285,18 +321,22 @@ document {
 	     },
 	Outputs => {"solsR" => {"contains refined solutions (as ", TO2{Point, "points"}, ")" }},
 	"Uses Newton's method to correct the given solutions so that the resulting approximation 
-	has its estimated relative error bounded by ", TO "ErrorTolerance", 
-	". The number of iterations made is at most ", TO "Iterations", ".",
+	has its estimated relative error bounded by min(", TO "ErrorTolerance", ",2^(-", TO "Bits", ")). ",
+	"The number of iterations made is at most ", TO "Iterations", ".",
 -- 	Caveat => {"If option ", TT "Software=>M2engine", " is specified, 
 -- 	     then the refinement happens in the M2 engine and it is assumed that the last path tracking procedure 
 -- 	     took place with the same option and was given the same target system. 
 -- 	     Any other value of this option would launch an M2-language procedure."},
         PARA {},
 	EXAMPLE lines ///
-R = CC[x,y];
-T = {x^2+y^2-1, x*y};
-sols = { {1.1_CC,0.1}, {-0.1_CC,1.2} };
-refine(T, sols, Software=>M2, ErrorTolerance=>.001, Iterations=>10)
+     	R = CC[x];
+     	F = polySystem {x^2-2};
+	P := refine(F, point{{1.5+0.001*ii}}, Bits=>1000)
+	first coordinates P
+	R = CC[x,y];
+	T = {x^2+y^2-1, x*y};
+	sols = { {1.1,-0.1}, {0.1,1.2} };
+	refine(T, sols, Software=>M2, ErrorTolerance=>.001, Iterations=>10)
      	///,
 	PARA {},
 	"In case of a singular (multiplicity>1) solution, while ", TO solveSystem, " and ", TO track, 
@@ -313,6 +353,20 @@ refine(T, sols, Software=>M2, ErrorTolerance=>.001, Iterations=>10)
 	refSols = refine(T, solsT)
 	refSols / status
      	///,
+	PARA {},
+    	"The failure to complete the refinement procedure is indicated 
+	by warning messages and the resulting point is displayed as ", TT "[R]", ".",
+	PARA {},
+	EXAMPLE lines ///
+     	R = CC[x];
+     	F = polySystem {x^2-2};
+	Q := refine(F, point{{1.5+0.001*ii}}, Bits=>1000, Iterations=>2)
+	peek Q
+     	///,
+	PARA {},	
+	Caveat => {"There are 2 'safety' bits in the computation. 
+	    If the condition of the system at the refined point is poor 
+	    the number of correct bits may be much smaller than requested."},
 	SeeAlso => {solveSystem, track}
 	}
 
@@ -345,6 +399,7 @@ document {
 	 [solveSystem,Software],[track,Software],[refine, Software],[setDefault,Software],
 	 [regeneration,Software],[parameterHomotopy,Software],[isOn,Software],
 	 [numericalIrreducibleDecomposition,Software], [hypersurfaceSection,Software],
+	 --[trackSegment,Software],
 	 M2,M2engine,M2enginePrecookedSLPs},
      Headline => "specify internal or external software",
      "One may specify which software is used in homotopy continuation. 
@@ -529,19 +584,21 @@ document {
 	    "Let ", TEX "\\sigma_1,...,\\sigma_n", " be the singular values of ", TT "M", ". "
 	    },
 	PARA {
-	    "If ", TO Threshold, " is >1, then to establish numerical rank we look 
+	    "If ", TO "LLLBases::Threshold", " is >1, then to establish numerical rank we look 
 	    for the first large gap between two consecutive singular values. ",
 	    "The gap between ", TEX "\\sigma_i", " and ", TEX "\\sigma_{i+1}", 
-	    " is large if ", TEX "\\sigma_i/\\sigma_{i+1} > ", TO Threshold,
+	    " is large if ", TEX "\\sigma_i/\\sigma_{i+1} > ", TO "LLLBases::Threshold",
 	    "."
 	    },
 	PARA {
-	    "If ", TO Threshold, " is <=1, then the rank equals 
-	    the number of singular values larger then ", TO Threshold, "." 
+	    "If ", TO "LLLBases::Threshold", " is <=1, then the rank equals 
+	    the number of singular values larger then ", TO "LLLBases::Threshold", "." 
 	    },
 	Caveat => {"We assume ", TEX "\\sigma_0=1", " above."},
         EXAMPLE lines ///
+options numericalRank
 numericalRank matrix {{2,1},{0,0.001}}
+numericalRank matrix {{2,1},{0,0.0001}}
      	///,
      	SeeAlso => {SVD}
 	}
@@ -631,12 +688,10 @@ document {
      	"The ", TO2{WitnessSet,"witness sets"}, " of the ", TO2{NumericalVariety,"numerical variety"}, TT "V",
 	" are in one-to-one correspondence with irreducible components of the variety defined by ", TT "I", ". ", 
 	EXAMPLE lines ///
-setRandomSeed 1
 R = CC[x,y,z]
 sph = (x^2+y^2+z^2-1); 
-I = ideal {sph*(x-1)*(y-x^2), sph*(y-2)*(z-x^3)};
-V = numericalIrreducibleDecomposition I 
-peek V
+I = ideal {sph*(y-x^2), sph*(z-x^3)};
+numericalIrreducibleDecomposition I 
     	///,
 	Caveat => {"This function is under development. It may not work well if the input represents a nonreduced scheme." },
         SeeAlso=>{(decompose, WitnessSet)}
@@ -652,7 +707,7 @@ document {
     Usage => "B = isOn(P,V)",
     Inputs => { 
 	"P"=>Point,  
-	"V"=>{ofClass NumericalVariety, ofClass WitnessSet, ofClass Ideal, ofClass RingElement}
+	"V"=>{ofClass NumericalVariety, ", ", ofClass WitnessSet, ", ", ofClass Ideal, ", or ", ofClass RingElement}
 	},
     Outputs => { "B"=>Boolean },
     "Determines whether the given point is (approximately) on the given variety, 
@@ -722,8 +777,47 @@ document {
 	[deflate,Variable]
 	},
     Headline => "first-order deflation",
-    "Deflate a polynomial system to restore quadratic convergence of Newton's method. 
-    The  option ", TT "Variable", " specifies the base name for the augmented variables.",
+    Usage => "r = deflate(F,P); r = deflate(F,r); r = deflate(F,B), ...",
+    Inputs => { "P"=>Point, "F"=>PolySystem, "r"=>ZZ, "B"=>Matrix },
+    Outputs => { "r"=>ZZ=>"the rank used in the (last) deflation"},
+    PARA{
+	"The purpose of deflation is to restore quadratic convergence of Newton's method in a neighborhood of a singular 
+    isolated solution P. This is done by constructing an augemented polynomial system with a solution of strictly lower multiplicity projecting to P."},
+    Consequences => {{"Attaches the keys ", TO Deflation, " and ", TO DeflationRandomMatrix, 
+	" which are MutableHashTables that (for rank r, a potential rank of the jacobian J of F) store ",
+	" the deflated system DF and a matrix B used to obtain it. ", 
+	" Here B is a random matrix of size n x (r+1), where n is the number of variables 
+	and DF is obtained by appending to F the matrix equation J*B*[L_1,...,L_r,1]^T = 0.
+	The polynomials of DF use the original variables and augmented variables L_1,...,L_r."}},
+    PARA{
+	"Apart from ", TT "P", ", ", ofClass Point,", one can pass various things as the second argument."  
+	},
+    UL {
+	{ofClass ZZ, " ", TT "r", " specifies the rank of the Jacobian dF (that may be known to the user)"},
+	{ofClass Matrix, " ", TT "B", " specifies a fixed (r+1)-by-n matrix to use in the deflation construction."},
+	{"a pair of matrices ", TT "(B,M)", " specifies additionally a matrix that is used to ", TO squareUp, "."},
+	{"a list", TT "{(B1,M1),(B2,M2),...}", 
+	    " prompts a chain of successive delations using the provided pairs of matrices."},
+	},
+    "The option ", TT "Variable", " specifies the base name for the augmented variables.",
+    EXAMPLE lines ///
+CC[x,y,z]
+F = polySystem {x^3,y^3,x^2*y,z^2}
+P0 = point matrix{{0.000001, 0.000001*ii,0.000001-0.000001*ii}}
+isFullNumericalRank evaluate(jacobian F,P0)
+r1 = deflate (F,P0)
+P1' = liftPointToDeflation(P0,F,r1) 
+F1 = F.Deflation#r1
+P1 = newton(F1,P1')
+isFullNumericalRank evaluate(jacobian F1,P1)
+r2 = deflate (F1,P1)
+P2' = liftPointToDeflation(P1,F1,r2) 
+F2 = F1.Deflation#r2
+P2 = newton(F2,P2')
+isFullNumericalRank evaluate(jacobian F2,P2)
+P = point {take(coordinates P2, F.NumberOfVariables)}
+assert(residual(F,P) < 1e-50)	
+    ///,
     Caveat => {"Needs more documentation!!!"},
     SeeAlso=>{PolySystem,newton}
     }
@@ -828,16 +922,31 @@ document {
 document {
     Key => {(parameterHomotopy,List,List,List),parameterHomotopy},
     Headline => "solve a parametric system of equations",
+       Usage => "sols = parameterHomotopy(F,varsP,valuesP)",
+    Inputs => { 
+	"F" => {" contains the polynomials in the system"},
+	"varsP" => {" names of the parameters"},
+	"valuesP" => {" contains (possibly several sets of) values of the parameters"}  
+	},
+    Outputs => { "sols"=>" lists of lists of solutions for each set of the parameters" },
     "Solves a parameteric polynomial system for several values of parameters.", 
+    EXAMPLE lines ///
+    R = CC[u1,u2,u3,x,y]
+    f1 = u1*(y-1)+u2*(y-2)+u3*(y-3)
+    f2 = (x-11)*(x-12)*(x-13)
+    try parameterHomotopy({f1,f2},{u1,u2,u3},{{1,0,0},{0,1+2*ii,0}}, Software=>BERTINI) else "need to install Bertini to run these lines"
+///,
     Caveat => {"Avalaible only with Software=>BERTINI at the moment..."}
     }
 
+-*
 document {
     Key => {(trackSegment,PolySystem,Number,Number,List), trackSegment},
     Headline => "track the one-parametric homotopy",
     "Tracks a homotopy on a linear segment in complex plane..",
     Caveat => {"Experimental: implemented only with SLPs at the moment!!!"}
     }
+*-
 
 document {
     Key => {(solveGenericSystemInTorus,List), solveGenericSystemInTorus, (solveGenericSystemInTorus,PolySystem)},
@@ -856,7 +965,7 @@ document {
     SeeAlso=>{PHCPACK, PHCpack, solveSystem}
     }
 
-{*-------- TEMPLATE ------------------
+-*-------- TEMPLATE ------------------
 document {
     Key => {,},
     Headline => "",
@@ -869,4 +978,59 @@ document {
     Caveat => {"" },
     SeeAlso=>{()}
     }
-*}
+*-
+
+document {
+    Key => {(gateHomotopy, GateMatrix, GateMatrix, InputGate),
+	gateHomotopy, 
+	},
+    Headline => "homotopy system via SLPexpressions",
+    Usage => "HS = gateHomotopy(H,X,T)",
+    Inputs => { 
+	"H"=>"a family of systems (given by a column vector)",
+	"X"=>"(a row vector of) variables",
+	"T"=>"homotopy (continuation) parameter" 
+	 },
+    Outputs => { "HS", 
+	-- ofClass {GateHomotopyof, GateParameterHomotopy}, 
+	", a homotopy that can be used with some routines of ", TO "NumericalAG" },    
+    "Optional arguments:",
+    UL{
+	{TO "Software", "-- specifies how the homotopy is evaluated: ", TT "(M2,M2engine)"}
+	},  
+    EXAMPLE lines ///
+X = inputGate symbol X
+Y = inputGate symbol Y
+T = inputGate symbol T
+F = {X*X-1, Y*Y*Y-1}
+G = {X*X+Y*Y-1, X*X*X+Y*Y*Y-1}
+H = (1 - T) * F + T * G
+HS = gateHomotopy(transpose matrix {H},matrix{{X,Y}},T)
+    ///,
+    Caveat => {"The order of inputs for unexported internal evaluation functions (evaluateH, etc.) is fixed as follows: ",
+	TT "Parameters, X, T", "."},
+    -- SeeAlso=>{GateHomotopy,GateParameterHomotopy,specialize}
+    }
+doc ///
+    Key 
+        [gateHomotopy,Software]
+    Headline
+    	specifies where evaluation should be done (M2=top level, M2engine=core)     	
+///
+doc ///
+    Key 
+	[gateHomotopy,Parameters]
+    Headline
+    	specifies parameter names
+///
+doc ///
+    Key 
+	[gateHomotopy,Strategy]
+    Headline
+    	strategy is either to "compress" or not (any other value)
+///    
+
+document {
+    Key => "DoublePrecision",
+    Headline => "a constant equal to 53 (the number of bits of precision)"
+    }

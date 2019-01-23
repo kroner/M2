@@ -174,7 +174,7 @@ assert( round_1 .45 === .4 )
 setRandomSeed 4
 assert( apply(20,i -> random 100) === {47, 38, 51, 74, 28, 50, 44, 25, 72, 16, 41, 61, 76, 89, 28, 27, 77, 34, 26, 57} ) -- version 1.1
 
-{*
+-*
     The MPFR library changed the way it generates random real numbers in version 3.1, see
     their file doc/mpfr.texi .
 
@@ -184,7 +184,7 @@ assert( apply(20,i -> random 100) === {47, 38, 51, 74, 28, 50, 44, 25, 72, 16, 4
     setRandomSeed 4; random CC
     setRandomSeed 4; random CC_100
     ///
-    *}
+    *-
    assert( (setRandomSeed 4; random RR) === .46156623802715113p53 );
    assert( (setRandomSeed 4; random RR_100) === .67753449342864841445246801151208p100 );
    assert( (setRandomSeed 4; random CC) === toCC(.46156623802715113p53,.3890127375373339p53) );
@@ -723,6 +723,105 @@ assert ( zero ((1.+ii)/(1/z)) )
 assert ( zero (1/((1.+ii)/z)) )
 assert ( zero ((1.+ii)/((1.+ii)/z)) )
 
+-- Tests of arithmetic operations with infinite numbers
+
+assert ( infinity + infinity == infinity )
+assert ( infinity - infinity === indeterminate )
+assert ( infinity - -infinity == infinity )
+assert ( infinity * infinity == infinity )
+assert ( infinity * - infinity == - infinity )
+assert ( infinity / infinity === indeterminate )
+
+nan = 1./0. - 1./0.
+assert ( infinity + 3 == infinity )
+assert ( infinity + 3/2 == infinity )
+assert ( infinity + 3. == infinity )
+assert ( infinity + pi == infinity )
+assert ( infinity + (5 + ii) == promote(1/0.,CC) )
+assert ( infinity + 1./0. == 1/0. )
+assert ( infinity + nan === indeterminate )
+assert ( - infinity + 1./0. === indeterminate )
+
+assert ( 3 - infinity == - infinity )
+assert ( 2/3 - infinity == - infinity )
+assert ( 2. - infinity == - infinity )
+assert ( EulerConstant - infinity == - infinity )
+
+assert ( 3 * infinity == infinity )
+assert ( 0 * infinity === indeterminate )
+assert ( 2/3 * - infinity == - infinity )
+assert ( -3. * - infinity == 1/0. )
+assert ( infinity * (1./0.) == 1/0. )
+assert ( infinity * (-1./0.) == - 1/0. )
+assert ( not isANumber(infinity * nan) )
+
+assert ( 3 // infinity == 0 )
+assert ( 3. / infinity == 0 )
+assert ( (5 + ii) // infinity == 0 )
+assert ( (1./0.) // infinity === indeterminate )
+assert ( nan // infinity === indeterminate )
+
+assert ( infinity // 3 == infinity )
+assert ( infinity // - 3 == - infinity )
+assert ( infinity // (1/2) == infinity )
+assert ( - infinity // -3. == infinity )
+assert ( infinity // 0 === indeterminate )
+
+assert ( infinity ^ 1 == infinity )
+assert ( infinity ^ 2 == infinity )
+assert ( infinity ^ 3 == infinity )
+assert ( infinity ^ (-1) == 0 )
+assert ( (-infinity) ^ 1 == - infinity )
+assert ( (-infinity) ^ 2 == infinity )
+assert ( (-infinity) ^ 3 == - infinity )
+assert ( (-infinity) ^ (-1) == 0 )
+assert ( infinity ^ 0 === indeterminate )
+assert ( infinity ^ (1/2) == infinity )
+assert ( (-infinity) ^ (1/2) === indeterminate )
+assert ( (-infinity) ^ (2/3) == infinity )
+assert ( (-infinity) ^ (5/3) == - infinity )
+assert ( infinity ^ 0.2 == infinity )
+assert ( (-infinity) ^ 0.2 === indeterminate )
+assert ( infinity ^ (-0.2) == 0 )
+assert ( infinity ^ (1./0.) == infinity )
+assert ( infinity ^ (-1./0.) == 0 )
+assert ( infinity ^ nan === indeterminate )
+assert ( (-infinity) ^ infinity === indeterminate )
+assert ( (-infinity) ^ (-infinity) == 0 )
+assert ( (-infinity) ^ (1./0.) === indeterminate )
+assert ( (-infinity) ^ (-1./0.) === indeterminate )
+assert ( (-infinity) ^ nan === indeterminate )
+
+assert ( 1 ^ infinity == 1 )
+assert ( 1 ^ - infinity == 1 )
+assert ( 0 ^ infinity == 0 )
+assert ( 0 ^ - infinity === indeterminate )
+assert ( (-1) ^ infinity === indeterminate )
+assert ( (-1) ^ - infinity === indeterminate )
+assert ( 3 ^ infinity == infinity )
+assert ( (-3) ^ infinity === indeterminate )
+assert ( 3 ^ - infinity == 0 )
+assert ( (-3) ^ - infinity === indeterminate )
+assert ( (1/5) ^ infinity == 0 )
+assert ( 0.2 ^ infinity == 0 )
+assert ( (-1/5) ^ infinity === indeterminate )
+assert ( (-0.2) ^ infinity === indeterminate )
+assert ( (1/5) ^ - infinity == infinity )
+assert ( 0.2 ^ - infinity == infinity )
+assert ( (-1/5) ^ - infinity === indeterminate )
+assert ( (-0.2) ^ - infinity === indeterminate )
+assert ( (7/6) ^ infinity == infinity )
+assert ( 1.3 ^ infinity == infinity )
+assert ( (-7/6) ^ infinity === indeterminate )
+assert ( (-1.3) ^ infinity === indeterminate )
+assert ( (7/6) ^ - infinity == 0 )
+assert ( 1.3 ^ - infinity == 0 )
+assert ( (-7/6) ^ - infinity === indeterminate )
+assert ( (-1.3) ^ - infinity === indeterminate )
+assert ( (1/1) ^ infinity == 1 )
+assert ( 1. ^ infinity == 1. )
+assert ( nan ^ infinity === indeterminate )
+
 assert ( size2 4. == 3 )
 assert ( size2 3.999999 == 2 )
 assert ( size2 (-4.) == 3 )
@@ -807,6 +906,31 @@ assert( toString toCC( 0.001, 8.88888 ) == "8.9*ii" )
 assert( toString toCC( 0.01, 8.88888 ) == "8.9*ii" )
 assert( toString toCC( 0.1, 8.88888 ) == ".1+8.9*ii" )
 assert( toString toCC( -0.1, 8.88888 ) == "-.1+8.9*ii" )
+
+-- Tests of comparisons among real numbers, complex numbers, NaNs, and infinite numbers
+
+assert( 1/0. > 0. )
+assert( (1/0. ? 0.) == symbol > )
+assert( (ii/0. ? 0.) == symbol incomparable )
+assert( (1/0. ? (1/0. - 1/0.)) == symbol incomparable )
+assert( (1. ? (1/0. - 1/0.)) == symbol incomparable )
+assert( ((1/0. - 1/0.) ? (1/0. - 1/0.)) == symbol incomparable )
+assert( (1/0. ? 1.) == symbol > )
+assert( (1/0. ? 2/0.) == symbol == )
+assert( (1/0. + 1*ii ? 1.) == symbol incomparable )
+assert( (ii/0. ? ii/0. - ii/0.) == symbol incomparable )
+assert( (infinity ? 1/0. - 1/0.) == symbol incomparable )
+assert( (infinity ? ii/0. - ii/0.) == symbol incomparable )
+assert( ii/0. == 1 + ii/0. )
+assert( ii/0. == 1/0. + ii*1 )
+assert( ii/0. == 1/0. + ii/1. )
+assert( ii/0. == -ii/0. )
+assert( ii/0. == 1 - ii/0. )
+assert( ii/0. - ii/0. != 1 + ii/0. )
+assert( not isANumber ((1/0.-1/0.) + 1*ii) )
+assert( not isANumber (1 + (ii/0.-ii/0.) ) )
+assert( not isANumber ((1 + ii/0.) - ii/0. ) )
+
 
 -- Local Variables:
 -- compile-command: "make -C $M2BUILDDIR/Macaulay2/packages/Macaulay2Doc/test numbers.out"

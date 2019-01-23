@@ -145,11 +145,7 @@ void *sbrk();		/* not really ansi standard, sigh */
 extern char current_date[];
 extern char current_time[];
 extern int system_errno();
-extern char *progname;
-
-#ifdef HAVE_GNU_GET_LIBC_VERSION
-extern char *gnu_get_libc_version();
-#endif
+extern const char *progname;
 
 #include "../dumpdata/dumpdata.h"
 
@@ -160,7 +156,6 @@ extern char *gnu_get_libc_version();
   extern jmp_buf interrupt_jump;
  #endif
 extern bool interrupt_jump_set;
-extern int reading_from_readline;
 
 /*
 // Local Variables:

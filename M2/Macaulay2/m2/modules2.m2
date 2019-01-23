@@ -22,6 +22,9 @@ Module + Module := Module => (M,N) -> (
 
 tensor(Module, Module) := Module => options -> (M,N) -> M**N
 Module ** Module := Module => (M,N) -> (
+     (oM,oN) := (M,N);
+     Y := youngest(M.cache.cache,N.cache.cache);
+     if Y#?(symbol **,M,N) then return Y#(symbol **,M,N);
      if M.?generators and not isFreeModule N
      or N.?generators and not isFreeModule M then (
 	  if M.?generators then M = cokernel presentation M;
@@ -29,19 +32,21 @@ Module ** Module := Module => (M,N) -> (
 	  );
      R := ring M;
      if R =!= ring N then error "expected modules over the same ring";
-     if isFreeModule M then (
-	  if isFreeModule N then (
-	       new Module from (R, raw M ** raw N)
-	       )
-	  else subquotient(
-	       if N.?generators then M ** N.generators,
-	       if N.?relations then M ** N.relations))
-     else (
-	  if isFreeModule N then (
-	       subquotient(
-		    if M.?generators then M.generators ** N,
-		    if M.?relations then M.relations ** N))
-	  else cokernel map(R, rawModuleTensor( raw M.relations, raw N.relations ))))
+     T := if isFreeModule M then (
+	       if isFreeModule N then (
+		    new Module from (R, raw M ** raw N)
+		    )
+	       else subquotient(
+		    if N.?generators then M ** N.generators,
+		    if N.?relations then M ** N.relations))
+	  else (
+	       if isFreeModule N then (
+		    subquotient(
+			 if M.?generators then M.generators ** N,
+			 if M.?relations then M.relations ** N))
+	       else cokernel map(R, rawModuleTensor( raw M.relations, raw N.relations )));
+     Y#(symbol **,oM,oN) = T;
+     T)
 
 Matrix ** Module := Matrix => (f,M) -> if isFreeModule M and M == (ring M)^1 and ring M === ring f then f else  f ** id_M
 Module ** Matrix := Matrix => (M,f) -> if isFreeModule M and M == (ring M)^1 and ring M === ring f then f else id_M ** f
@@ -74,7 +79,7 @@ Ring ** Matrix := Matrix => (R,f) -> (
 poincare Module := (cacheValue symbol poincare) (
      M -> (
 	  -- see the comment in the documentation for (degree,Ideal) about what this means when M is not homogeneous
-	  new degreesRing M from rawHilbert raw leadTerm gb {* presentation cokernel ?? *} presentation M))
+	  new degreesRing M from rawHilbert raw leadTerm gb -* presentation cokernel ?? *- presentation M))
 
 recipN = (n,wts,f) -> (
      -- n is a positive integer
@@ -233,6 +238,7 @@ expression ProjectiveHilbertPolynomial := (h) -> (
      sum(sort pairs h, (n,c) -> c * new Subscript from {"P", n})
      )	  
 net ProjectiveHilbertPolynomial := (h) -> net expression h
+texMath ProjectiveHilbertPolynomial := x -> texMath expression x
 
 projectiveHilbertPolynomial = method()
 projectiveHilbertPolynomial ZZ := ProjectiveHilbertPolynomial => (n) -> (
@@ -288,16 +294,29 @@ hilbertPolynomial Ring := ProjectiveHilbertPolynomial => options -> (R) -> hilbe
 Ideal * Ring := Ideal => (I,S) -> if ring I === S then I else ideal(I.generators ** S)
 Ring * Ideal := Ideal => (S,I) -> if ring I === S then I else ideal(I.generators ** S)
 
+issub := (f, g) -> (
+    RP := ring f;
+    if ring g =!= RP then error "expected objects of the same ring";
+    if instance(RP, LocalRing) then (
+        for i from 0 to numColumns f - 1 do (
+            LocalRings := needsPackage "LocalRings";
+            liftUp := value LocalRings.Dictionary#"liftUp";
+            L := flatten entries syz(liftUp(f_{i} | g), SyzygyRows => 1);
+            if not any(L, u -> isUnit promote(u, RP)) then return false;
+            );
+        true
+        )
+    else -1 === rawGBContains(raw gb g, raw f)    -- we can do better in the homogeneous case!
+    )
+
 ZZ == Ideal := (n,I) -> I == n
 Ideal == ZZ := (I,n) -> (
      if n === 0
      then I.generators == 0
      else if n === 1
-     then 1_(ring I) % I == 0
+     then issub(matrix {{1_(ring I)}}, generators I)
      else error "attempted to compare ideal to integer not 0 or 1"
      )
-
-issub := (f,g) -> -1 === rawGBContains(raw gb g,raw f)	    -- we can do better in the homogeneous case!
 
 ZZ == Module := (n,M) -> M == n
 Module == ZZ := (M,n) -> (
@@ -347,7 +366,7 @@ multidegree Module := M -> (
      A := degreesRing M;
      onem := map(A,A,apply(generators A, t -> 1-t));
      c := codim M;
-     if c === infinity then 0_A else part(c,onem numerator poincare M))
+     if c === infinity then 0_A else part(c,numgens A:1,onem numerator poincare M))
 multidegree Ring := R -> multidegree R^1
 multidegree Ideal := I -> multidegree cokernel generators I
 
@@ -402,7 +421,7 @@ addHook(Module, symbol minimalPresentation, (opts,M) -> (
 
 addHook(Module, symbol minimalPresentation, (opts,M) -> (
      	  R := ring M;
-	  if (isAffineRing R and isHomogeneous M) or (R.?SkewCommutative and isField coefficientRing R and isHomogeneous M) then (
+	  if (isAffineRing R and isHomogeneous M) or (R.?SkewCommutative and isAffineRing coefficientRing R and isHomogeneous M) then (
 	       f := presentation M;
 	       g := complement f;
 	       N := cokernel modulo(g, f);
@@ -470,7 +489,11 @@ dual Module := Module => {} >> o -> F -> if F.cache.?dual then F.cache.dual else
      if not isFreeModule F then kernel transpose presentation F
      else new Module from (ring F,rawDual raw F))
 
------------------------------------------------------------------------------
+Module#id = (M) -> map(M,M,1)
+
+reshape = method()
+reshape(Module,Module,Matrix) := Matrix => (F, G, m) -> map(F,G,rawReshape(raw m, raw cover F, raw cover G))
+
 Hom(Ideal, Ideal) := Module => (I,J) -> Hom(module I, module J)
 Hom(Ideal, Module) := Module => (I,M) -> Hom(module I, M)
 Hom(Module, Ideal) := Module => (M,I) -> Hom(M, module I)
@@ -481,49 +504,77 @@ Hom(Ideal, Ring) := Module => (I,R) -> Hom(module I, R^1)
 Hom(Ring, Ideal) := Module => (R,I) -> Hom(R^1, module I)
 
 Hom(Module, Module) := Module => (M,N) -> (
-     if isFreeModule M 
-     then dual M ** N
-     else kernel Hom(presentation M, N)
-     )
--- An alternate Hom routine:
-Hom(Module, Module) := Module => (M,N) -> (
-    if isFreeModule M and isFreeModule N then (
-        dualM := dual M;
-        MN := dualM ** N;
-        MN.cache.Hom = {M, N, dualM, N};
-        return MN;
-        );
-     homog := isHomogeneous M and isHomogeneous N;
-     if debugLevel > 0 and homog then pushvar(symbol flagInhomogeneity,true);
-     -- This version is perhaps less transparent, but is
-     -- easier to determine the link with homomorphisms.
-     m := presentation M;
-     mdual := transpose m;
-     n := presentation N;
-     h1 := modulo(mdual ** target n, target mdual ** n);
-     MN = trim subquotient(h1,source mdual ** n);
-     -- Now we store the information that 'homomorphism'
-     -- will need to reconstruct the map corresponding to
-     -- an element.
-     MN.cache.Hom = {M,N,source mdual,target n};
-     if debugLevel > 0 and homog then popvar symbol flagInhomogeneity;
-     MN)
+     Y := youngest(M.cache.cache,N.cache.cache);
+     if Y#?(Hom,M,N) then return Y#(Hom,M,N);
+     H := trim kernel (transpose presentation M ** N);
+     H.cache.homomorphism = (f) -> map(N,M,adjoint'(f,M,N), Degree => first degrees source f);
+     Y#(Hom,M,N) = H; -- a hack: we really want to type "Hom(M,N) = ..."
+     H)
+
+adjoint' = method()
+adjoint'(Matrix,Module,Module) := Matrix => (m,G,H) -> (
+     -- adjoint':  m : F --> Hom(G,H) ===> F ** G --> H
+     -- warning: in versions 1.7.0.1 and older dual G was called for, instead of G, since G was assumed to be free
+     F := source m;
+     inducedMap(H, F ** G, reshape(super H, F ** G, super m),Verify=>false))
+
+adjoint = method()
+adjoint (Matrix,Module,Module) := Matrix => (m,F,G) -> (
+     -- adjoint :  m : F ** G --> H ===> F --> Hom(G,H)
+     H := target m;
+     inducedMap(Hom(G,H), F, reshape(Hom(cover G,ambient H), F, super m),Verify=>false))
 
 homomorphism = method()
 homomorphism Matrix := Matrix => (f) -> (
-     if not isFreeModule(source f) or 
-        numgens source f =!= 1 or
-        not (target f).cache.?Hom
-	then error "homomorphism may only be determined for maps R --> Hom(M,N)";
-     MN := (target f).cache.Hom;
-     M := MN#0;
-     N := MN#1;
-     M0 := MN#2;
-     N0 := MN#3;
-     deg := (degrees source f)#0;
-     map(N,M,adjoint1(super f, M0, N0),Degree=>deg))
+     -- from a map R^1 -> Hom(M,N) produce a map M-->N
+     H := target f;
+     if not H.cache.?homomorphism then error "expected target of map to be of the form 'Hom(M,N)'";
+     if not isFreeModule source f
+     or not rank source f == 1 then error "expected source of map to be free of rank 1";
+     H.cache.homomorphism f)
+
+homomorphism' = method()
+homomorphism' Matrix := Matrix => (f) -> (
+     -- from a map M-->N produce a map R^1 -> Hom(M,N)
+     R := ring f;
+     M := source f;
+     adjoint(f,R^1,M)
+     )
+
+compose = method()
+compose(Module, Module, Module) := Matrix => (M,N,P) -> (
+     R := ring M;
+     if not ring N === R or not ring P === R then error "expected modules over the same ring";
+     if isQuotientModule N then (
+	  -- Now cover N === ambient N
+	  inducedMap(Hom(M,P),,
+	       map(dual cover M ** ambient P, Hom(M,N)**Hom(N,P), 
+		    (dual cover M ** reshape(R^1, cover N ** dual cover N, id_(cover N)) ** ambient P)
+		    *
+		    (generators Hom(M,N) ** generators Hom(N,P))),
+	       Verify=>false))
+     else (
+	  N' := cokernel presentation N;
+	  compose(M,N',P) * (Hom(M,map(N',N,1))**Hom(map(N,N',1),P))))
+
+flatten Matrix := Matrix => m -> (
+     R := ring m;
+     F := target m;
+     G := source m;
+     if not isFreeModule F or not isFreeModule G
+     then error "expected source and target to be free modules";
+     if numgens F === 1 
+     then m
+     else (
+	  f := reshape(R^1, G ** dual F ** R^{ - degree m}, m);
+	  f = map(target f, source f, f, Degree => toList(degreeLength R:0));
+	  f))
+
+flip = method()
+flip(Module,Module) := Matrix => (F,G) -> map(ring F,rawFlip(raw F, raw G))
+
 -----------------------------------------------------------------------------
-pdim Module := M -> length resolution trim M
+pdim Module := M -> length resolution minimalPresentation M
 
 Module / Module := Module => (M,N) -> (
      L := ambient M;
@@ -573,6 +624,7 @@ annihilator = method(
      )
 
 annihilator Module := Ideal => o -> (M) -> (
+     if isWeylAlgebra ring M then error "no meaning for modules over a Weyl algebra"; 
      f := presentation M;
      if o.Strategy === Intersection then (
 	  F := target f;
@@ -780,17 +832,6 @@ basis(InfiniteNumber,ZZ,Matrix) := opts -> (lo,hi,M) -> basis(lo,{hi},M,opts)
 basis(ZZ,InfiniteNumber,Matrix) := opts -> (lo,hi,M) -> basis({lo},hi,M,opts)
 basis(ZZ,ZZ,Matrix) := opts -> (lo,hi,M) -> basis({lo},{hi},M,opts)
 
------------------------------------------------------------------------------
-truncate = method()
-truncate(List,Module) := Module => (deg,M) -> (
-     if M.?generators then (
-	  b := M.generators * cover basis(deg,deg,cokernel presentation M,Truncate=>true);
-	  if M.?relations then subquotient(b, M.relations)
-	  else image b)
-     else image basis(deg,deg,M,Truncate=>true))
-truncate(List,Ideal) := Ideal => (deg,I) -> ideal truncate(deg,module I)
-truncate(ZZ,Module) := Module => (deg,M) -> truncate({deg},M)
-truncate(ZZ,Ideal) := Ideal => (deg,I) -> truncate({deg},I)
 -----------------------------------------------------------------------------
 isSubset(Module,Module) := (M,N) -> (
      -- here is where we could use gb of a subquotient!

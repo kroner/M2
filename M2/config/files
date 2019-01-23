@@ -24,7 +24,6 @@ distributions/freebsd/Makefile
 distributions/freebsd/post-install
 distributions/freebsd/post-deinstall
 distributions/deb/Makefile
-distributions/deb/macaulay2-common/control.prelim
 distributions/deb/macaulay2-common/postrm
 distributions/deb/macaulay2-common/postinst
 distributions/deb/macaulay2-common/prerm
@@ -34,9 +33,9 @@ distributions/deb/macaulay2/postinst
 distributions/deb/macaulay2/prerm
 distributions/deb/macaulay2/preinst
 libraries/Makefile
+libraries/cohomcalg/Makefile
+libraries/topcom/Makefile
 libraries/atomic_ops/Makefile
-libraries/missing/Makefile
-libraries/missing/src/Makefile
 libraries/Makefile.library
 libraries/M2/Makefile
 libraries/gc/Makefile
@@ -63,6 +62,7 @@ libraries/givaro/Makefile
 libraries/fplll/Makefile
 libraries/polymake/Makefile
 libraries/normaliz/Makefile
+libraries/csdp/Makefile
 libraries/pari/Makefile
 libraries/readline/Makefile
 libraries/ntl/Makefile
@@ -71,7 +71,6 @@ libraries/gftables/Makefile
 libraries/factory/Makefile
 libraries/frobby/Makefile
 libraries/lapack/Makefile
-libraries/blas/Makefile
 Macaulay2/Makefile
 Macaulay2/README
 Macaulay2/packages/SCSCP/docinput/Makefile
@@ -87,7 +86,6 @@ Macaulay2/bin/M2
 Macaulay2/e-includes/Makefile
 Macaulay2/e/Makefile
 Macaulay2/e/Makefile.common
-Macaulay2/e/f4/Makefile
 Macaulay2/e/unit-tests/Makefile
 Macaulay2/emacs/M2-init.el
 Macaulay2/emacs/Makefile

@@ -1028,18 +1028,18 @@ floor(e:Expr):Expr := (
      is x:RRcell do (
 	  if isnan(x.v) then buildErrorPacket("encountered NotANumber in conversion to integer") else
 	  if isinf(x.v) then buildErrorPacket("encountered infinite real number in conversion to integer") else
-	  toExpr(floor(x.v))				    -- # typical value: floor, RR, ZZ
+	  toExpr(floor(x.v))
 	  )
      is x:CCcell do (
 	  if isnan(x.v) then buildErrorPacket("encountered NotANumber in conversion to integer") else
 	  if isinf(x.v) then buildErrorPacket("encountered infinite real number in conversion to integer") else
-	  toExpr(floor(x.v.re))				    -- # typical value: floor, CC, ZZ
+	  toExpr(floor(x.v.re))
 	  )
-     is x:QQcell do toExpr(floor(x.v))				    -- # typical value: floor, QQ, ZZ
-     is ZZcell do e				    -- # typical value: floor, ZZ, ZZ
+     is x:QQcell do toExpr(floor(x.v))
+     is ZZcell do e
      else buildErrorPacket("expected an integral, rational, or real number")
      );
-setupfun("floor",floor);
+setupfun("floor0",floor);
 
 round0(e:Expr):Expr := (
      when e
@@ -1548,7 +1548,7 @@ map(e:Expr,f:Expr):Expr := (
 	  )
 --     is obj:HashTable do (
 --	  if obj.Mutable then return WrongArg("an immutable hash table");
---	  if ancestor(obj.Class,Tally) then mapkeys(f,obj) else mapvalues(f,obj))
+--	  if ancestor(obj.Class,VirtualTally) then mapkeys(f,obj) else mapvalues(f,obj))
      is b:List do (
 	  c := map(b.v,f);
 	  when c is err:Error do if err.message == breakMessage then if err.value == dummyExpr then nullE else err.value else c

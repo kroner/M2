@@ -1,7 +1,9 @@
 ------------------------------------------------------
--- refining/sharpening routines, Newton step 
+-- refining/sharpening routines, Newton's method
 -- (loaded by  ../NumericalAlgebraicGeometry.m2)
 ------------------------------------------------------
+export {"refine", "newton", "endGameCauchy"}
+    
 newton = method()
 -- assumes F has coefficients in field RR_prec or CC_prec 
 --         P has coordinates in that can be promoted to the above field 
@@ -96,24 +98,30 @@ refine Point := o -> P -> if P.?SolutionSystem then (
     ) else error "there is no polynomial system associated with the point"
 
 -- this is the main function for M2
-refine (PolySystem,Point) := Point => o -> (F,s) -> 
-if member(o.Software,{BERTINI,PHCPACK}) then first refine(F,{s},o) else (
+refine (PolySystem,Point) := Point => o -> (F',s) -> 
+if member(o.Software,{BERTINI,PHCPACK}) then first refine(F',{s},o) else (
     o = fillInDefaultOptions o;
-    n'iterations := o.Iterations;
+    errorTolerance := o.ErrorTolerance;
     x := transpose matrix s; -- convert to vector 
+    if o.Bits =!= infinity then errorTolerance = min(errorTolerance, 
+	2.^(-o.Bits)*conditionNumber evaluate(jacobian F', x));
+    bits := max(53,
+	( if o.Bits =!= infinity then o.Bits
+	    else -round(log_2 errorTolerance) )
+	+ 2); -- two safety bits
+    K := CC_bits; -- new field
+    R := K(monoid[gens ring F']); -- new ring
+    F := polySystem (map(R, ring F', gens R)) F'.PolyMap;
+    n'iterations := o.Iterations;
     -- if isProjective then x = normalize x;
-    x1 := x; -- refined x
-    error'bound := --if not s.?ErrorBoundEstimate or s.SolutionSystem =!= F 
-                   --then 
-		   infinity
-		   --else s.ErrorBoundEstimate
-		   ;
-    norm'dx := infinity; -- dx = + infinity
+    x1 := promote(x,K); -- refined x
+    error'bound := infinity;
+    norm'dx := infinity;
     norm'Fx := infinity;
     refinement'success := true;
     nCorrSteps := 0;
     while (norm'Fx > o.ResidualTolerance 
-	or norm'dx > o.ErrorTolerance * norm x1) 
+	or norm'dx > errorTolerance * norm x1) 
     and nCorrSteps < n'iterations 
     and refinement'success
     --and cond < o.SingularConditionNumber 
@@ -145,7 +153,7 @@ if member(o.Software,{BERTINI,PHCPACK}) then first refine(F,{s},o) else (
 	    if DBG>2 then print "warning: Newton's method did not converge within given residual bound in the given number of steps";
 	    refinement'success = false;
 	    );
-    	if norm'dx > o.ErrorTolerance * norm x1 then (
+    	if norm'dx > errorTolerance * norm x1 then (
 	    if DBG>2 then print "warning: Newton's method did not converge within given error bound in the given number of steps";
 	    refinement'success = false;
 	    );
@@ -203,8 +211,8 @@ refine (PolySystem,List) := List => o -> (F,solsT) -> (
     if o.Software === PHCPACK then  return refinePHCpack(equations F,solsT,o)/point;
     if o.Software === BERTINI then (
 	-- bits to decimals 
-	decimals := ceiling(o.Bits * log 2 / log 10);
-	return bertiniRefineSols(equations F,solsT,decimals)
+	decimals := if o.Bits =!= infinity then ceiling(o.Bits * log 2 / log 10) else log_10 o.ErrorTolerance;
+	return bertiniRefineSols(decimals,equations F,solsT)
 	);
 
      -- Software=>M2 (and Software=>M2engine for now)
@@ -214,11 +222,21 @@ refine (PolySystem,List) := List => o -> (F,solsT) -> (
 	     ))
      )         
 TEST /// -- refine 
+sqrt2 = point {{sqrt(2p1000)}}
+R = CC[x]
+-- sqrt2' = refine(polySystem{x^2-2}, point {{1.5}}, Bits=>500) -- fails with SIGSEGV
+sqrt2' = refine(polySystem{x^2-2}, point {{1.5_CC}}, Bits=>500)
+areEqual(sqrt2',sqrt2, Tolerance=>2^-498)
+
 R = CC[x,y];
 T = {x^2+y^2-1, x*y};
 sols = { {1.1_CC,0.1}, { -0.1,1.2} };
 rsols = refine(T, sols, Software=>M2, ErrorTolerance=>.001, Iterations=>10)
 assert areEqual(rsols, {{1,0},{0,1}})
+r1000sols = refine(T, rsols, Software=>M2, Bits=>1000)
+assert areEqual(r1000sols, {{1,0},{0,1}}, Tolerance=>2^-997)
+
+
 T = polySystem {x^2+y^2-1, (x-y)^2};
 e = 1e-9; 
 P = point {{sqrt 2/2 + e*ii,sqrt 2/2 - e*ii}};
@@ -229,6 +247,162 @@ P'' = refine P
 assert(P''.ErrorBoundEstimate < 1e-6 and P''.ConditionNumber < 100 and status P'' === Singular)
 ///
 
+------------------------------- ENGAMES -------------------------------------------------------------------
+-- H: a homotopy
+-- t'end: the end value of the continuation parameter t
+-- p0: a Point = a solution to H_t(x)=0, with t0=p0.LastT close to t'end
+-- "number of vertices" (optional): ... of the regular polygon approximating the circle |t-t'end|=|t0-t'end|
+-- OUTPUT: a Point
+endGameCauchy = method(Options=>{"number of vertices"=>16,"backtrack factor"=>1.,
+	tStep => null, -- initial
+	tStepMin => null,
+	stepIncreaseFactor => null,
+	numberSuccessesBeforeIncrease => null,
+	maxCorrSteps => null,
+	CorrectorTolerance => null, -- tracking tolerance
+	-- end of path
+	EndZoneFactor => null, --!!! EndZoneCorrectorTolerance = CorrectorTolerance*EndZoneFactor when 1-t<EndZoneFactor 
+	InfinityThreshold => null -- used to tell if the path is diverging
+	})
+
+endGameCauchy (GateHomotopy, Number, Point):= o -> (H, t'end, p0) -> (
+    x0 := mutableMatrix transpose {coordinates p0 | {p0.LastT}} ; 
+    w := endGameCauchy(H,t'end,x0,o);
+    -- if w == 0 then error "endGameCauchy: something went wrong";
+    p := point {drop(first entries transpose x0,-1)};
+    if w>0 then ( 
+	p.Multiplicity = w; 
+	p.SolutionStatus = (if w == 1 then Regular else Singular);
+	p.LastT = t'end;
+	) 
+    else (
+	p.SolutionStatus = RefinementFailure; 
+	);
+    p
+    )
+
+-- x0: a column vector with n+1 coordinates, the last one is t0
+-- OUTPUT: changes x0 in place, returns the winding number or 0 if failed 
+endGameCauchy (GateHomotopy, Number, MutableMatrix):= o -> (H, t'end, x0in) -> (
+    assert(numcols x0in === 1);
+    checkPrecision := true;  -- !!! should be adaptive eventually
+    if not canHaveRawHomotopy H then error "expected a Homotopy with RawHomotopy";  
+    o = fillInDefaultOptions o;
+    m := o#"number of vertices";
+    if DBG>0 then << "(C"<<m<<")";
+    n := numrows x0in - 1;
+    statusOut := mutableMatrix(ZZ,2,1); -- 2 rows (status, number of steps), #solutions 
+    nPlus1rows := toList(0..n);
+    nPlus1by1submatrix := M -> submatrix(M,nPlus1rows,{0});
+    
+    -- bactrack from x0in to x0
+    x0out := mutableMatrix(ring x0in,n+2,1);     
+    dt0 := x0in_(n,0)-t'end;
+    x0out_(n,0) = t'end + o#"backtrack factor"*dt0;  
+    trackHomotopyM2engine(H, x0in, 
+	x0out, statusOut, -- output goes here
+	o.tStep, o.tStepMin, 
+	o.CorrectorTolerance, o.maxCorrSteps, 
+	toRR o.InfinityThreshold,
+	checkPrecision
+	);
+    s'status := solutionStatusLIST#(statusOut_(0,0));
+    if s'status =!= Regular then return 0; -- error
+    
+    x0 := nPlus1by1submatrix(x0out);
+    inp := mutableMatrix x0;
+    out := mutableMatrix(ring x0,n+2,1);
+    
+    x0' := mutableMatrix x0; -- x0' stores the sum approximating the integral
+    dt0 = x0_(n,0)-t'end;
+    out_(n,0) = t'end + dt0*exp(2*pi*ii/m);
+    loop'incomplete := true;
+    s'status = Regular; 
+    w := 0;
+    while loop'incomplete and w<=10 --!!!
+    do (
+    	for i to m-1 do (
+	    ti'out := timing trackHomotopyM2engine(H, inp, 
+		out, statusOut, -- output goes here
+		o.tStep, o.tStepMin, 
+		o.CorrectorTolerance, o.maxCorrSteps, 
+		toRR o.InfinityThreshold,
+		checkPrecision);
+    	    if DBG>2 then << "-- endGameCauchy: trackHomotopyM2engine time = " << first ti'out << " sec." << endl;
+    	    s'status = solutionStatusLIST#(statusOut_(0,0));
+	    if s'status =!= Regular then return 0; -- error
+    	    if DBG>2 then << "-- endGameCauchy: number of steps = " << statusOut_(1,0) << endl;
+	    x0'' := nPlus1by1submatrix(out);
+    	    x0' = x0'+x0'';
+	    inp = x0''; -- reuse matrix for the next step;
+    	    out_(n,0) = t'end + dt0*exp(2*pi*(i+2)*ii/m); 
+	    );
+	w = w + 1;
+	loop'incomplete = not areEqual(inp,x0);
+	-- print (inp-x0);
+	if loop'incomplete 
+	then out_(n,0) = t'end + dt0*exp(2*pi*ii/m) -- reset (roundoff error may accumulate)
+	else x0' = x0' - inp; -- x0 is "double counted"
+	);
+    for i to n do x0in_(i,0) = x0'_(i,0)/(w*m);    
+    x0in_(n,0) = t'end;
+    w
+    )
+
+TEST ///
+restart
+debug needsPackage "NumericalAlgebraicGeometry"
+CC[x,y]
+d = 4;
+-- d = 5; -- fails 
+T = {(x-2)^d,y-x+x^2-x^3}
+sols = solveSystem(T,PostProcess=>false)
+p0 = first sols
+peek p0
+t'end = 1
+NAGtrace 1
+p = endGameCauchy(p0#"H",t'end,p0)
+p = endGameCauchy(p0#"H",t'end,p0,"backtrack factor"=>0.5)
+assert (d == p.Multiplicity)
+p = endGameCauchy(p0#"H",t'end,p0,"number of vertices"=>20)
+assert (d == p.Multiplicity)
+
+-- 
+restart
+needsPackage "NumericalAlgebraicGeometry"
+n = 3;
+R = CC[x_1..x_n]
+d = 3;
+rMap = map(R,R,apply(n,i->random(1,R)+random(2,R)))
+T = polySystem(gens R / (f->rMap (f-1)^d))
+sols = solveSystem(T,PostProcess=>false)
+p0 = first select(sols, s->status s =!= Regular)
+peek p0
+t'end = 1
+p = endGameCauchy(p0#"H",t'end,p0)
+norm evaluate(T,p)
+assert (d == p.Multiplicity)
+p = endGameCauchy(p0#"H",t'end,p0,"backtrack factor"=>2)
+norm evaluate(T,p)
+assert (d == p.Multiplicity)
+p = endGameCauchy(p0#"H",t'end,p0,"number of vertices"=>16)
+norm evaluate(T,p)
+assert (d == p.Multiplicity)
+p = endGameCauchy(p0#"H",t'end,p0,"backtrack factor"=>100,"number of vertices"=>100)
+norm evaluate(T,p)
+assert (d == p.Multiplicity)
+--
+restart
+R=QQ[x,y]
+f = x^2 + y^2 - 1 
+g = x^3 + y^3 - 1 
+needsPackage "NumericalAlgebraicGeometry"
+solveSystem  ({f,g},PostProcess=>false)
+solveSystem  {f,g}
+
+///
+
+-* -- (Deprecated) 
 endGame'Cauchy'polygon = method(Dispatch=>Thing)
 endGame'Cauchy'polygon Sequence := parameters -> (
     -- H: PolySystem, a homotopy
@@ -273,7 +447,7 @@ x32 = endGame'Cauchy'polygon(H,1,t0,x0,32)
 -- x64 = endGame'Cauchy'polygon(H,1,t0,x0,64)
 assert areEqual(first x32, {2,6}, Tolerance=>0.001)
 ///
-
+*-
 
 /// -- OLD CODE
 refineViaDeflation = method(Options=>{Order=>1, Tolerance=>0.0001})

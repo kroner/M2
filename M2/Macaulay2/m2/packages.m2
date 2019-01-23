@@ -1,14 +1,9 @@
 --		Copyright 1993-2003 by Daniel R. Grayson
 
-addStartFunction(
-     () -> (
-	  path = prepend("./",path);
-	  if prefixDirectory =!= null then path = append(path,prefixDirectory|currentLayout#"packages");
-	  ))
-
 Package = new Type of MutableHashTable
 Package.synonym = "package"
-net Package := toString Package := p -> if p#?"title" then p#"title" else "{*package*}"
+net Package := toString Package := p -> if p#?"pkgname" then p#"pkgname" else "-*package*-"
+texMath Package := x -> texMath toString x
 loadedPackages = {}
 options Package := p -> p.Options
 
@@ -24,7 +19,7 @@ Package.GlobalAssignHook = (X,x) -> if not hasAttribute(x,ReverseDictionary) the
 Package.GlobalReleaseHook = globalReleaseFunction
 
 dismiss Package := pkg -> (
-     if pkg#"title" === "Core" then error "Core package cannot be dismissed";
+     if pkg#"pkgname" === "Core" then error "Core package cannot be dismissed";
      loadedPackages = delete(pkg,loadedPackages);
      dictionaryPath = delete(pkg.Dictionary,dictionaryPath);
      dictionaryPath = delete(pkg#"private dictionary",dictionaryPath);
@@ -42,11 +37,22 @@ loadPackage = method(
 packageLoadingOptions := new MutableHashTable
 checkPackageName = title -> if not match("^[a-zA-Z0-9]+$",title) then error( "package title not alphanumeric: ",format title)
 
+closePackage = pkg -> (
+     if pkg#?"raw documentation database"
+     then (db -> if isOpen db then close db) pkg#"raw documentation database";
+     )
+
 loadPackage String := opts -> pkgtitle -> (
      checkPackageName pkgtitle;
      if opts.Reload === true then (
+	  -- << "-- reloading package " << pkgtitle << endl;
+	  -- really close the old one
 	  dismiss pkgtitle;
-	  if PackageDictionary#?pkgtitle then PackageDictionary#pkgtitle <- PackageDictionary#pkgtitle;
+	  if PackageDictionary#?pkgtitle then (
+	       pkg := value PackageDictionary#pkgtitle;
+	       if instance(pkg,Package) then closePackage pkg; -- eventually we won't be able to keep all of these open, anyway, since 256 can be our limit on open file descriptors
+	       PackageDictionary#pkgtitle <- PackageDictionary#pkgtitle; -- clear out the value of the symbol
+	       );
 	  );
      filename := if opts.FileName === null then pkgtitle | ".m2" else opts.FileName;
      packageLoadingOptions#pkgtitle = opts;
@@ -59,6 +65,8 @@ loadPackage String := opts -> pkgtitle -> (
      remove(packageLoadingOptions,pkgtitle);
      if not PackageDictionary#?pkgtitle then error("the file ", actualFilename, " did not define a package called ", pkgtitle);
      value PackageDictionary#pkgtitle)
+
+loadPackage Package := opts -> pkg -> loadPackage(toString pkg, opts ++ { Reload => true })
 
 needsPackage = method(
      TypicalValue => Package,
@@ -104,7 +112,9 @@ newPackage = method(
 	  Configuration => {},
 	  Reload => false,
 	  PackageExports => {},
-	  PackageImports => {}
+	  PackageImports => {},
+          UseCachedExampleOutput => null,
+          OptionalComponentsPresent => null
 	  })
 
 protect Reload
@@ -130,39 +140,38 @@ stderr << "--loading configuration for package \"PKG\" from file " << currentFil
 }
 ///
 
-closePackage = pkg -> (
-     if pkg#?"raw documentation database"
-     then (db -> if isOpen db then close db) pkg#"raw documentation database";
-     )
-
 -- gdbm makes architecture dependent files, so we try to distinguish them, in case
 -- they get mixed.  Yes, that's in addition to installing them in directories that
 -- are specified to be suitable for machine dependent data.
 databaseSuffix = "-" | version#"endianness" | "-" | version#"pointer size" | ".db"
 
-newPackage(String) := opts -> (title) -> (
-     checkPackageName title;
+databaseDirectory = (layout,pre,pkg) -> pre | replace("PKG",pkg,layout#"packagecache")
+databaseFilename  = (layout,pre,pkg) -> databaseDirectory(layout,pre,pkg) | "rawdocumentation" | databaseSuffix
+
+newPackage String := opts -> (pkgname) -> (
+     checkPackageName pkgname;
      scan({(Version,String),(AuxiliaryFiles,Boolean),(DebuggingMode,Boolean),(InfoDirSection,String),
 	       (PackageImports,List),(PackageExports,List),(Authors,List),(Configuration,List)},
 	  (k,K) -> if not instance(opts#k,K) then error("newPackage: expected ",toString k," option of class ",toString K));
      scan({(Headline,String),(HomePage,String),(Date,String)},
 	  (k,K) -> if opts#k =!= null and not instance(opts#k,K) then error("newPackage: expected ",toString k," option of class ",toString K));
-     originalTitle := title;
-     if PackageDictionary#?title and instance(value PackageDictionary#title,Package) then (
-	  if opts.Reload === null then warningMessage("package ", title, " being reloaded")
-	  else if opts.Reload === false then error("package ", title, " not reloaded; try Reload => true")
+     originalTitle := pkgname;
+     if PackageDictionary#?pkgname and instance(value PackageDictionary#pkgname,Package) then (
+	  if opts.Reload === null then warningMessage("package ", pkgname, " being reloaded")
+	  else if opts.Reload === false then error("package ", pkgname, " not reloaded; try Reload => true")
 	  );
      scan(opts.PackageExports, needsPackage);
-     dismiss title;
+     dismiss pkgname;
      save := (saveD := dictionaryPath, saveP := loadedPackages, debuggingMode, loadDepth);
      local hook;
-     if title =!= "Core" then (
+     if pkgname =!= "Core" then (
      	  hook = haderror -> (
 	       if haderror then (
 	       	    (dictionaryPath, loadedPackages, debuggingMode, loadDepth) = save;
-		    PackageDictionary#title <- PackageDictionary#title;
+		    if PackageDictionary#?pkgname
+		    then PackageDictionary#pkgname <- PackageDictionary#pkgname;
 		    )
-	       else endPackage title
+	       else endPackage pkgname
 	       );
 	  fileExitHooks = prepend(hook, fileExitHooks);
 	  );
@@ -172,7 +181,8 @@ newPackage(String) := opts -> (title) -> (
      then error("expected Configuration option to be a list of options");
      defaultConfiguration = new OptionTable from defaultConfiguration;
      if not noinitfile then (
-	  configfilename := concatenate(applicationDirectory(), "init-",title,".m2");
+     	  setUpApplicationDirectory();
+	  configfilename := concatenate(applicationDirectory(), "init-",pkgname,".m2");
 	  userConfiguration := if fileExists configfilename then simpleLoad configfilename else {};
 	  if not instance(userConfiguration, List) or not all(userConfiguration, x -> instance(x,Option) and #x == 2)
 	  then error("expected value provided by ",configfilename," to be a list of options");
@@ -180,17 +190,17 @@ newPackage(String) := opts -> (title) -> (
 	  toOptions := op -> apply(pairs op,(k,v) -> k=>v);
 	  combinedConfiguration := applyPairs(defaultConfiguration, (k,v) -> (k, if userConfiguration#?k then userConfiguration#k else v));
 	  if set keys defaultConfiguration =!= set keys userConfiguration then (
-	       if fileExists configfilename then stderr << "--new configuration options for package " << title << endl;
-	       s := replace("PKG",title,configFileString);
+	       if fileExists configfilename then stderr << "--new configuration options for package " << pkgname << endl;
+	       s := replace("PKG",pkgname,configFileString);
 	       s = replace("VALUES",concatenate between_(","|newline|"     ") (toExternalString \ toOptions combinedConfiguration),s);
 	       moveFile(configfilename,Verbose=>true);	    -- move file out of way
-	       stderr << "--storing configuration for package " << title << " in " << configfilename << endl;
+	       stderr << "--storing configuration for package " << pkgname << " in " << configfilename << endl;
 	       configfilename << s << close;
 	       );
 	  opts = merge(opts, new OptionTable from {Configuration => combinedConfiguration},last);
 	  );
-     if packageLoadingOptions#?title then (
-	  loadOptions := packageLoadingOptions#title;
+     if packageLoadingOptions#?pkgname then (
+	  loadOptions := packageLoadingOptions#pkgname;
 	  if loadOptions.?Configuration then (
 	       -- now the Configuration options specified by arguments to loadPackage or needsPackage override the others
 	       loadConfig := loadOptions.Configuration;
@@ -202,12 +212,29 @@ newPackage(String) := opts -> (title) -> (
 	       opts = merge(opts, new OptionTable from {DebuggingMode => loadOptions.DebuggingMode},last);
 	       );
 	  );
-     if opts.DebuggingMode and not debuggingMode then opts = merge(opts, new OptionTable from {DebuggingMode => false},last);
+     if opts.DebuggingMode and not debuggingMode
+     then opts = merge(opts, new OptionTable from {DebuggingMode => false},last);
+     if opts.OptionalComponentsPresent === null
+     then opts = merge(opts, new OptionTable from {OptionalComponentsPresent => opts.CacheExampleOutput =!= true },last);
+     if opts.UseCachedExampleOutput === null
+     then opts = merge(opts, new OptionTable from {UseCachedExampleOutput => not opts.OptionalComponentsPresent},last);
+     packagePrefix := (
+	  -- Try to detect whether we are loading the package from an installed version.
+	  -- A better test would be to see if the raw documentation database is there...
+	  m := regex("(/|^)" | Layout#2#"packages" | "$", currentFileDirectory);
+	  if m#?1 
+	  then substring(currentFileDirectory,0,m#1#0 + m#1#1)
+	  else (
+	       m = regex("(/|^)" | Layout#1#"packages" | "$", currentFileDirectory);
+	       if m#?1
+	       then substring(currentFileDirectory,0,m#1#0 + m#1#1)
+	       else prefixDirectory -- this can be useful when running from the source tree, but this is a kludge
+	       ));
      newpkg := new Package from nonnull {
-          "title" => title,
+          "pkgname" => pkgname,
 	  symbol Options => opts,
      	  symbol Dictionary => new Dictionary, -- this is the global one
-     	  "private dictionary" => if title === "Core" then first dictionaryPath else new Dictionary, -- this is the local one
+     	  "private dictionary" => if pkgname === "Core" then first dictionaryPath else new Dictionary, -- this is the local one
      	  "close hook" => hook,
 	  "configuration file name" => configfilename,
 	  "previous currentPackage" => currentPackage,
@@ -223,35 +250,30 @@ newPackage(String) := opts -> (title) -> (
 	  "exported mutable symbols" => {},
 	  "example results" => new MutableHashTable,
 	  "source directory" => toAbsolutePath currentFileDirectory,
-	  if opts.AuxiliaryFiles then "auxiliary files" => toAbsolutePath currentFileDirectory | title | "/",
+	  if opts.AuxiliaryFiles then "auxiliary files" => toAbsolutePath currentFileDirectory | pkgname | "/",
 	  "source file" => toAbsolutePath currentFileName,
 	  "undocumented keys" => new MutableHashTable,
-	  "package prefix" => (
-	       m := regex("(/|^)" | currentLayout#"packages" | "$", currentFileDirectory);
-	       if m#?1 
-	       then substring(currentFileDirectory,0,m#1#0 + m#1#1)
-	       else prefixDirectory
-	       ),
+	  if packagePrefix =!= null then ("package prefix" => packagePrefix)
 	  };
      newpkg#"test number" = 0;
-     if newpkg#"package prefix" =!= null then (
+     if newpkg#?"package prefix" then (
 	  -- these assignments might be premature, for any package that is loaded before dumpdata, as the "package prefix" might change:
-	  rawdbname := newpkg#"package prefix" | replace("PKG",title,currentLayout#"packagecache") | "rawdocumentation" | databaseSuffix;
+	  l := detectCurrentLayout newpkg#"package prefix";
+	  rawdbname := databaseFilename(Layout#l,newpkg#"package prefix", pkgname);
 	  if fileExists rawdbname then (
 	       rawdb := openDatabase rawdbname;
-	       if notify then stderr << "--opened database: " << rawdbname << endl;
 	       newpkg#"raw documentation database" = rawdb;
 	       addEndFunction(() -> if isOpen rawdb then close rawdb))
 	  else (
 	       if notify then stderr << "--database not present: " << rawdbname << endl;
 	       );
-	  newpkg#"index.html" = newpkg#"package prefix" | replace("PKG",newpkg#"title",currentLayout#"packagehtml") | "index.html";
+	  newpkg#topFileName = newpkg#"package prefix" | replace("PKG",newpkg#"pkgname",currentLayout#"packagehtml") | topFileName;
 	  )
      else if notify then stderr << "--package prefix null, not opening database for package " << newpkg << endl;
      addStartFunction(() -> 
 	  if not ( newpkg#?"raw documentation database" and isOpen newpkg#"raw documentation database" ) and prefixDirectory =!= null 
 	  then (
-	       dbname := prefixDirectory | replace("PKG",title,currentLayout#"packagecache") | "rawdocumentation" | databaseSuffix; -- what if there is more than one prefix directory?
+	       dbname := databaseFilename (currentLayout,prefixDirectory,pkgname); -- what if there is more than one prefix directory?
 	       if fileExists dbname then (
 		    db := newpkg#"raw documentation database" = openDatabase dbname;
 	       	    if notify then stderr << "--opened database: " << rawdbname << endl;
@@ -260,9 +282,9 @@ newPackage(String) := opts -> (title) -> (
 	       	    if notify then stderr << "--database not present: " << rawdbname << endl;
 		    )));
      pkgsym := (
-	  if PackageDictionary#?title
-	  then getGlobalSymbol(PackageDictionary,title)
-	  else PackageDictionary#("Package$" | title) = getGlobalSymbol(PackageDictionary,title)
+	  if PackageDictionary#?pkgname
+	  then getGlobalSymbol(PackageDictionary,pkgname)
+	  else PackageDictionary#("Package$" | pkgname) = getGlobalSymbol(PackageDictionary,pkgname)
 	  );
 
      global currentPackage <- newpkg;
@@ -271,58 +293,49 @@ newPackage(String) := opts -> (title) -> (
      pkgsym <- newpkg;
      loadedPackages = {Core};
      dictionaryPath = {Core.Dictionary, OutputDictionary, PackageDictionary};
-     if Core#?"base packages" then (
-	  if member(title,Core#"base packages") and title =!= "Macaulay2Doc" then (
-	       if member("Macaulay2Doc",Core#"base packages") then needsPackage "Macaulay2Doc";
-	       )
-	  else scan(reverse Core#"base packages", needsPackage)
-	  );
      dictionaryPath = (
 	  if member(newpkg.Dictionary,dictionaryPath)
      	  then join({newpkg#"private dictionary"}, dictionaryPath)
 	  else join({newpkg#"private dictionary",newpkg.Dictionary}, dictionaryPath));
-     setAttribute(newpkg.Dictionary,PrintNames,title | ".Dictionary");
-     setAttribute(newpkg#"private dictionary",PrintNames,title | "#\"private dictionary\"");
+     setAttribute(newpkg.Dictionary,PrintNames,pkgname | ".Dictionary");
+     setAttribute(newpkg#"private dictionary",PrintNames,pkgname | "#\"private dictionary\"");
      debuggingMode = opts.DebuggingMode;		    -- last step before turning control back to code of package
-     if title =!= "SimpleDoc" and title =!= "Core" and title =!= "Text" then needsPackage "SimpleDoc";
+     -- if pkgname =!= "SimpleDoc" and pkgname =!= "Core" and pkgname =!= "Text" then needsPackage "SimpleDoc";
      scan(opts.PackageImports, needsPackage);
      scan(opts.PackageExports, needsPackage);
      newpkg.loadDepth = loadDepth;
-     loadDepth = if title === "Core" then 1 else if not debuggingMode then 2 else 3;
+     loadDepth = if pkgname === "Core" then 1 else if not debuggingMode then 2 else 3;
      newpkg)
 
 export = method(Dispatch => Thing)
 exportFrom = method()
-exportFrom(Package,List) := (P,x) -> export \\ (s -> currentPackage#"private dictionary"#s = P#"private dictionary"#s) \ x
+exportFrom(Package,List) := (P,x) -> export \\ toString \ (s -> currentPackage#"private dictionary"#s = P#"private dictionary"#s) \ x
 export Symbol := x -> export {x}
 export String := x -> export {x}
 export List := v -> (
      if currentPackage === null then error "no current package";
      pd := currentPackage#"private dictionary";
      d := currentPackage.Dictionary;
-     title := currentPackage#"title";
+     title := currentPackage#"pkgname";
      syms := new MutableHashTable;
      scan(v, sym -> (
 	       local nam;
+     	       if instance(sym,Symbol) then error("'export' no longer accepts symbols (such as ",toString sym,"); enclose the name in quotation marks");
 	       if instance(sym, Option) then (
 		    nam = sym#0;			    -- synonym
      	       	    if class nam =!= String then error("expected a string: ", nam);
 		    if pd#?nam then error("symbol intended as exported synonym already used internally: ",format nam, "\n", symbolLocation pd#nam, ": it was used here");
-		    sym = sym#1;
+     	       	    if class sym#1 =!= String then error("expected a string: ", nam);
+		    sym = getGlobalSymbol(pd,sym#1);
 		    )
 	       else if instance(sym, String) then (
+		    if match("^[[:alpha:]]$",sym) then error ("cannot export single-letter symbol ", getGlobalSymbol(pd,sym));
 		    nam = sym;
-		    sym = getGlobalSymbol(pd,nam);
+		    sym = if pd#?nam then pd#nam else getGlobalSymbol(pd,nam);
 		    )
-	       else (
-		    nam = toString sym;
-		    );
-	       if not instance(sym,Symbol) then error ("expected a symbol: ", sym);
-	       if not pd#?(toString sym) or pd#(toString sym) =!= sym 
-	       then (
-		    error ("symbol ",sym," defined elsewhere, not in current package: ", currentPackage);
-		    sym = getGlobalSymbol(pd,nam);	    -- replace sym by one in the current package's private dictionary
-		    );
+	       else error ("'export' expected a string or an option but was given ", sym, ", of class ", class sym);
+	       -- we use "symbolBody" here, because a few symbols are threadlocal, and a symbol is really a symbol closure, which include the frame
+	       assert(pd#(toString sym) === sym);
 	       syn := title | "$" | nam;
 	       d#syn = d#nam = sym;
 	       syms#sym = true;
@@ -332,6 +345,7 @@ export List := v -> (
      syms)
 exportMutable = method(Dispatch => Thing)
 exportMutable Symbol := x -> exportMutable {x}
+exportMutable String := x -> exportMutable {x}
 exportMutable List := v -> (
      syms := export v;
      currentPackage#"exported mutable symbols" = join(currentPackage#"exported mutable symbols",syms);
@@ -356,7 +370,7 @@ findSynonyms Symbol := x -> (
      scan(dictionaryPath, d -> scan(pairs d, (nam,sym) -> if x === sym and getGlobalSymbol nam === sym then r = append(r,nam)));
      sort unique r)
 
-warn0 := (sym,front,behind,syns) -> if debuggingMode then (
+warn0 := (sym,front,behind,syns) -> (
      -- just for debugging:
      -- error("symbol '",sym,"' in ",toString behind," is shadowed by a symbol in ",toString front);
      stderr << "--warning: symbol " << format toString sym << " in " << behind << " is shadowed by a symbol in " << front << endl;
@@ -366,7 +380,7 @@ warn0 := (sym,front,behind,syns) -> if debuggingMode then (
      else stderr << "--  use the synonym " << syns#0 << endl
      else stderr << "--  no synonym is available" << endl)
 warnedAlready := new MutableHashTable; addStartFunction(() -> warnedAlready = new MutableHashTable)
-warn := x -> if not warnedAlready#?x then (warn0 x; warnedAlready#x = true)
+warn := x -> if not warnedAlready#?x and debuggingMode then (warn0 x; warnedAlready#x = true)
 
 checkShadow = () -> (
      d := dictionaryPath;
@@ -393,11 +407,11 @@ checkShadow = () -> (
 
 endPackage = method()
 endPackage String := title -> (
-     if currentPackage === null or title =!= currentPackage#"title" then error ("package not current: ",title);
+     if currentPackage === null or title =!= currentPackage#"pkgname" then error ("package not current: ",title);
      pkg := currentPackage;
-     ws := set pkg#"exported mutable symbols";
+     ws := set apply(pkg#"exported mutable symbols",symbolBody);
      exportDict := pkg.Dictionary;
-     scan(sortByHash values exportDict, s -> if not ws#?s then (
+     scan(sortByHash values exportDict, s -> if not ws#?(symbolBody s) then (
 	       protect s;
 	       ---if value s =!= s and not hasAttribute(value s,ReverseDictionary) then setAttribute((value s),ReverseDictionary,s)
 	       ));
@@ -405,7 +419,7 @@ endPackage String := title -> (
 	  protect pkg#"private dictionary";
 	  protect exportDict;
 	  );
-     if pkg#"title" === "Core" then (
+     if pkg#"pkgname" === "Core" then (
 	  loadedPackages = {pkg};
 	  dictionaryPath = {Core.Dictionary, OutputDictionary, PackageDictionary};
 	  )
@@ -430,7 +444,7 @@ endPackage String := title -> (
      b := select(values pkg#"private dictionary" - set values pkg.Dictionary, s -> mutable s and value s === s);
      if #b > 0 then (
 	  b = last \ sort apply(b, s -> (hash s,s));
-	  error splice ("mutable unexported unset symbol(s) in package ",pkg#"title",": ", toSequence between_", " b);
+	  error splice ("mutable unexported unset symbol(s) in package ",pkg#"pkgname",": ", toSequence between_", " b);
 	  );
      pkg)
 
@@ -453,6 +467,7 @@ package Symbol := s -> (
 	       else if package d =!= null then break package d)));
 package HashTable := package Function := x -> if hasAttribute(x,ReverseDictionary) then package getAttribute(x,ReverseDictionary)
 package Sequence := s -> youngest (package\s)
+package Array := s -> package toSequence s
 
 use Package := pkg -> (
      a := member(pkg,loadedPackages);
@@ -470,14 +485,14 @@ use Package := pkg -> (
      )
 
 beginDocumentation = () -> (
-     if packageLoadingOptions#?(currentPackage#"title") and not packageLoadingOptions#(currentPackage#"title").LoadDocumentation
+     if packageLoadingOptions#?(currentPackage#"pkgname") and not packageLoadingOptions#(currentPackage#"pkgname").LoadDocumentation
      and currentPackage#?"raw documentation database" and isOpen currentPackage#"raw documentation database" then (
 	  if notify then stderr << "--beginDocumentation: using documentation database, skipping the rest of " << currentFileName << endl;
 	  currentPackage#"documentation not loaded" = true;
 	  return end;
 	  );
      if notify then stderr << "--beginDocumentation: reading the rest of " << currentFileName << endl;
-     if currentPackage#"title" != "Text" and  currentPackage#"title" != "SimpleDoc" then (
+     if currentPackage#"pkgname" != "Text" and  currentPackage#"pkgname" != "SimpleDoc" then (
      	  needsPackage "Text";
      	  needsPackage "SimpleDoc";
 	  );
@@ -492,74 +507,16 @@ debug Package := pkg -> (
 	  );
      checkShadow())
 
-body := response -> replace("^(.|.\r\n)*\r\n\r\n","",response)
-getwww := url -> (
-     www := getWWW url;
-     if www === null or match("^[^ ]+ 404\\b",www) then null else body www)
-chkwww := url -> (
-     www := getwww url;
-     if www === null then error("web page not found: \"", url, "\"");
-     www)
-getPackage = method(Options => { 
-	  Repository => "http://www.math.uiuc.edu/Macaulay2/Packages/",
-	  Version => null, 
-	  CurrentVersion => null,
-	  UserMode => null,
-	  DebuggingMode => false,
-	  Configuration => {}
-	  })
-installMethod(getPackage, opts -> () -> lines getwww (opts.Repository | "packages" ))
-getPackage String := opts -> pkgname -> (
-     packages := lines getwww (opts.Repository | "packages" );
-     if not member(pkgname,packages)
-     then error("unknown package: ", pkgname, "; known packages: ", concatenate(between(", ",packages)));
-     url := opts.Repository | pkgname | "/";
-     versions := sort lines chkwww (url | "versions");
-     if #versions == 0 then error "getPackage: no versions available from repository";
-     if opts.Version === null then (
-     	  vers := last versions;
-	  if opts.CurrentVersion =!= null and not vers > opts.CurrentVersion then return;
-	  )
-     else (
-	  vers = opts.Version;
-	  if not member(vers,versions) then error("requested version not among those available: ",concatenate between(", ",versions));
-	  );
-     stderr << "--fetching package " << pkgname << ", version " << vers << " from " << url << endl;
-     tmp := temporaryFileName();
-     unwind := arg -> scan(reverse findFiles tmp, fn -> if isDirectory fn then removeDirectory fn else removeFile fn);
-     makeDirectory tmp;
-     tmp = tmp | "/";
-     fn := pkgname | ".m2";
-     m2file := getwww(url | vers | "/" | fn);
-     filename := tmp | pkgname | ".m2";
-     if m2file === null then (
-	  fn = pkgname | ".tgz";
-	  tgzfile := getwww(url | vers | "/" | fn);
-	  if tgzfile === null then error "failed to download package";
-	  stderr << "--file downloaded: " << fn << endl;
-	  tfn := pkgname | ".tgz";
-	  tgzfilenm := tmp | tfn;
-	  tgzfilenm << tgzfile << close;
-	  cmd := concatenate("cd ",tmp,"; tar xzf ",tfn);
-	  stderr << "--- " << cmd << endl;
-	  if 0 != chkrun cmd then error("getPackage: failed to untar ",tfn);
-	  if not fileExists filename then error("package file ",filename," missing");
-	  )
-     else (
-	  stderr << "--file downloaded: " << fn << endl;
-	  filename << m2file << close;
-	  );
-     pkg := loadPackage(pkgname,
-	  DebuggingMode => opts.DebuggingMode,
-	  Configuration => opts.Configuration,
-	  FileName => filename,
-	  LoadDocumentation => true
-	  );
-     installPackage(pkg, 
-	  IgnoreExampleErrors => true, 
-	  DebuggingMode => opts.DebuggingMode, 
-	  FileName => filename, 
-	  UserMode => opts.UserMode);
+installedPackages = () -> (
+     prefix := applicationDirectory() | "local/";
+     layout := Layout#(detectCurrentLayout prefix);	    -- will always be Layout#1
+     packages := prefix | layout#"packages";
+     if isDirectory packages then for p in readDirectory packages list if match("\\.m2$",p) then replace("\\.m2$","",p) else continue else {}
+     )
+     
+uninstallAllPackages = () -> for p in installedPackages() do (
+     << "-- uninstalling package " << p << endl;
+     uninstallPackage p;
      )
 
 -- Local Variables:

@@ -13,14 +13,15 @@ newPackage(
         {Name => "Mikhail Zinin", Email => "mzinin@gmail.com"}
     },
     Headline => "Involutive Pommaret basis in a Boolean ring",
+    PackageImports => {"BooleanGB"},
     DebuggingMode => false
     )
 
 export {
        -- functions
-       biBasis,
+       "biBasis",
        -- options
-       toGroebner -- whether reduce to Groebner basis or not
+       "toGroebner" -- whether reduce to Groebner basis or not
        }
 
 debug Core
@@ -52,8 +53,6 @@ document {
             "Vladimir Gerdt, Mikhail Zinin and Yuri Blinkov. On computation of Boolean involutive bases. Programming and Computer Software, Vol. 36, No. 2, 2010, 117-123."
            }        
          }
-         
-needsPackage "BooleanGB"
 
 document {
         Key => { biBasis, 

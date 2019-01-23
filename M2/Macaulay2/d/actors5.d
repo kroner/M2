@@ -712,13 +712,17 @@ method1c(e:Expr,env:Sequence):Expr := (
      else WrongArg("a class")
      );
 newmethod1(e:Expr):Expr := (
-     when e is s:Sequence do if length(s) != 2 then WrongNumArgs(2) else (
+     when e is s:Sequence do if length(s) != 3 then WrongNumArgs(3) else (
 	  f := s.0;
 	  output := s.1;
-	  env := Sequence(nullE,f);
-	  cfc := Expr(CompiledFunctionClosure(if output == True then method1c else method1,nextHash(),env));
-	  env.0 = cfc;
-	  cfc)
+	  when s.2 is typ:HashTable do (
+	       env := Sequence(nullE,f);
+	       cfc := Expr(CompiledFunctionClosure(if output == True then method1c else method1,nextHash(),env));
+	       if typ != compiledFunctionClosureClass then cfc = SpecialExpr(typ,cfc);
+	       env.0 = cfc;
+	       cfc)
+	  else WrongArg(3,"a type of CompiledFunctionClosure")
+	  )
      else WrongNumArgs(2));
 setupfun("newmethod1",newmethod1);
 
@@ -1713,6 +1717,7 @@ engineDebugLevelS := dummySymbol;
 debuggingModeS := dummySymbol;
 errorDepthS := dummySymbol;
 gbTraceS := dummySymbol;
+numericalAlgebraicGeometryTraceS := dummySymbol;
 debuggerHookS := dummySymbol;
 lineNumberS := dummySymbol;
 allowableThreadsS := dummySymbol;
@@ -1754,6 +1759,7 @@ syms := SymbolSequence(
      (  defaultPrecisionS = setupvar("defaultPrecision",toExpr(defaultPrecision));  defaultPrecisionS  ),
      (  errorDepthS = setupvar("errorDepth",toExpr(errorDepth));  errorDepthS  ),
      (  gbTraceS = setupvar("gbTrace",toExpr(gbTrace));  gbTraceS  ),
+     (  numericalAlgebraicGeometryTraceS = setupvar("numericalAlgebraicGeometryTrace",toExpr(numericalAlgebraicGeometryTrace));  numericalAlgebraicGeometryTraceS  ),
      (  debuggerHookS = setupvar("debuggerHook",debuggerHook);  debuggerHookS  ),
      (  lineNumberS = setupvar("lineNumber",toExpr(lineNumber));  lineNumberS  ),
      (  allowableThreadsS = setupvar("allowableThreads",toExpr(Ccode( int, " getAllowableThreads() " )));  allowableThreadsS  ),
@@ -1884,6 +1890,7 @@ store(e:Expr):Expr := (			    -- called with (symbol,newvalue)
 		    else if sym === printingLeadLimitS then (printingLeadLimit = n; e)
 		    else if sym === printingTrailLimitS then (printingTrailLimit = n; e)
 		    else if sym === gbTraceS then (gbTrace = n; e)
+		    else if sym === numericalAlgebraicGeometryTraceS then (numericalAlgebraicGeometryTrace = n; e)
 		    else if sym === printWidthS then (printWidth = n; e)
 		    else buildErrorPacket(msg))
 	       else buildErrorPacket(
@@ -1896,6 +1903,7 @@ store(e:Expr):Expr := (			    -- called with (symbol,newvalue)
 		    || sym === printingLeadLimitS
 		    || sym === printingTrailLimitS
 		    || sym === gbTraceS
+		    || sym === numericalAlgebraicGeometryTraceS
 		    || sym === printWidthS
 		    then (when sym is s:SymbolClosure do s.symbol.word.name else "") + ": expected a small integer"
 		    else msg))

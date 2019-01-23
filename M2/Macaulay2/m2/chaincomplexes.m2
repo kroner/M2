@@ -1,5 +1,8 @@
 --		Copyright 1993-2002 by Daniel R. Grayson
 
+union := (x,y) -> keys(set x + set y)
+intersection := (x,y) -> keys(set x * set y)
+
 Resolution = new Type of MutableHashTable
 Resolution.synonym = "resolution"
 toString Resolution := C -> toString raw C
@@ -40,10 +43,6 @@ ChainComplex _ ZZ = (C,i,M) -> C#i = M
 
 ChainComplex ^ ZZ := Module => (C,i) -> C_-i
 
-spots  = C -> select(keys C, i -> class i === ZZ)
-union        := (x,y) -> keys(set x + set y)
-intersection := (x,y) -> keys(set x * set y)
-
 length ChainComplex := (C) -> (
      s := select(spots complete C, i -> C_i != 0);
      if #s === 0 then 0 else max s - min s
@@ -52,7 +51,8 @@ length ChainComplex := (C) -> (
 ChainComplex == ChainComplex := (C,D) -> (
      complete C;
      complete D;
-     all(sort union(spots C, spots D), i -> C_i == D_i)
+     I := sort union(spots C, spots D);
+     all(I, i -> C_i == D_i) and all(I, i -> C.dd_i == D.dd_i)
      )     
 
 ChainComplex == ZZ := (C,i) -> (complete C; all(spots C, i -> C_i == 0))
@@ -67,16 +67,24 @@ net ChainComplex := C -> (
 	  b := s#-1;
 	  horizontalJoin between(" <-- ", apply(a .. b,i -> stack (net C_i," ",net i)))))
 
+texMathShort := m -> (
+    if m == 0 then return "0";
+    x := entries m;
+    texRow := row -> if #row>8 then { texMath first row, "\\cdots", texMath last row } else texMath\row;
+    x = if #x>10 then ( t:= texRow first x; {t, toList(#t:"\\vphantom{\\Big|}\\vdots"), texRow last x } ) else texRow\x;
+    concatenate(
+	"\\begin{pmatrix}" | newline,
+	between(///\\/// | newline, apply(x, row -> concatenate between("&",row))),
+	"\\end{pmatrix}"
+	      )
+    )
+
 texMath ChainComplex := C -> (
      complete C;
      s := sort spots C;
-     if # s === 0 then "0"
-     else (
-	  a := s#0;
-	  b := s#-1;
-	  horizontalJoin between(" \\leftarrow ", apply(a .. b,i -> texMath C_i))))
-
-tex ChainComplex := C -> "$" | texMath C | "$"
+     if # s === 0 then "0" else
+     concatenate apply(s,i->if i==s#0 then texUnder(texMath C_i,i) else "\\,\\xleftarrow{\\scriptsize " | texMathShort C.dd_i | "}\\," | texUnder(texMath C_i,i) )
+      )
 
 -----------------------------------------------------------------------------
 ChainComplexMap = new Type of GradedModuleMap
@@ -90,8 +98,6 @@ complete ChainComplexMap := f -> (
 
 source ChainComplexMap := f -> f.source
 target ChainComplexMap := f -> f.target
-
-lineOnTop := (s) -> concatenate(width s : "-") || s
 
 sum ChainComplex := Module => C -> (complete C; directSum apply(sort spots C, i -> C_i))
 sum ChainComplexMap := Matrix => f -> (
@@ -124,14 +130,13 @@ net ChainComplexMap := f -> (
      v := between("",
 	  apply(sort intersection(spots f.source, spots f.target / (i -> i - f.degree)),
 	       i -> horizontalJoin (
-		    net (i+f.degree), " : ", net target f_i, " <--",
-		    lineOnTop net f_i,
-		    "-- ", net source f_i, " : ", net i
+		    net (i+f.degree), " : ", net MapExpression { target f_i, source f_i, f_i }, " : ", net i
 		    )
 	       )
 	  );
      if # v === 0 then "0"
      else stack v)
+
 ring ChainComplexMap := (f) -> ring source f
 
 ChainComplexMap _ ZZ := Matrix => (f,i) -> if f#?i then f#i else (
@@ -698,9 +703,8 @@ texMath BettiTally := v -> (
 	  apply(v, row -> (between("&", apply(row,x->if not match("^[0-9]*$",x) then ("\\text{",x,"}") else x)), "\\\\")),
 	  "\\end{matrix}\n",
 	  ))
-tex BettiTally := v -> concatenate("$", texMath v, "$")
 
-betti = method(TypicalValue => BettiTally, Options => { Weights => null })
+betti = method(TypicalValue => BettiTally, Options => { Weights => null, Minimize => false })
 heftfun0 := wt -> d -> sum( min(#wt, #d), i -> wt#i * d#i )
 heftfun := (wt1,wt2) -> (
      if wt1 =!= null then heftfun0 wt1
@@ -714,6 +718,20 @@ betti Matrix := opts -> f -> betti(chainComplex f, opts)
 betti GroebnerBasis := opts -> G -> betti(generators G, opts)
 betti Ideal := opts -> I -> betti(generators I, opts)
 betti Module := opts -> M -> betti(presentation M, opts)
+
+unpackEngineBetti = (w) -> (
+    -- w is the result of e.g. rawGBBetti.
+    -- this is an array of ints, of the form:
+    -- [lodegree, hidegree, len, b(lodegree,0), b(lodegree,1), ..., b(lodegree,len), ... b(hidegree,len)]
+     lo := w#0;
+     hi := w#1;
+     len := w#2;
+     w = drop(w,3);
+     w = pack(len+1,w);
+     w = table(lo .. hi, 0 .. len, (i,j) -> (j,{i+j},i+j) => w#(i-lo)#j); -- no weight option used here
+     w = toList splice w;
+     w = select(w, option -> option#1 != 0);
+     new BettiTally from w)
 
 rawBetti = (computation, type) -> (
      w := rawGBBetti(computation, type);
@@ -733,14 +751,45 @@ heft Resolution := heft GradedModule := C -> heft ring C
 undocumented' (betti,Resolution)
 betti Resolution := opts -> X -> (
      -- this version works only for rings of degree length 1
-     b := rawBetti(X.RawComputation, 0); -- the raw version takes no weight option
+     -- currently if opts.Minimize is true, then an error is given
+     -- unless the FastNonminimal=>true option was given for the free resolution.
+     b := rawBetti(X.RawComputation, if opts.Minimize then 4 else 0); -- the raw version takes no weight option
      heftfn := heftfun(opts.Weights,heft X);
      b = applyKeys(b, (i,d,h) -> (i,d,heftfn d));
      b)
 
+minimalBetti Ideal := 
+minimalBetti Module := {
+        DegreeLimit => null,
+        LengthLimit => null,
+        Weights => null
+    } >> opts -> (I) -> (
+   C := if opts.LengthLimit === null then 
+           resolution(I, StopBeforeComputation=>true, FastNonminimal=>true)
+       else
+           resolution(I, StopBeforeComputation=>true, FastNonminimal=>true, LengthLimit=>opts.LengthLimit+1);
+   if not C.?Resolution or not C.Resolution.?RawComputation then 
+     error "cannot use 'minimalBetti' with this input.  
+     Input must be an ideal or module in a polynomial 
+     ring or skew commutative polynomial ring over 
+     a finite field, which is singly graded.  
+     These restrictions might be removed in the future.";
+   rawC := C.Resolution.RawComputation;
+   w := rawMinimalBetti(rawC, 
+       if opts.DegreeLimit =!= null then {opts.DegreeLimit} else {},
+       if opts.LengthLimit =!= null then {opts.LengthLimit} else {}
+       );
+   b := unpackEngineBetti w;
+   -- The following code is lifted directly from 'betti Resolution'
+   heftfn := heftfun(opts.Weights,heft ring C.Resolution);
+   b = applyKeys(b, (i,d,h) -> (i,d,heftfn d));
+   b
+   )
+
 betti GradedModule := opts -> C -> (
      if C.?Resolution and degreeLength ring C === 1 and heft C === {1} then betti(C.Resolution,opts)
      else (
+          if opts.Minimize then error "Minimize=>true is currently only supported for res(...,FastNonminimal=>true)";
 	  complete C;
      	  heftfn := heftfun(opts.Weights,heft C);
 	  new BettiTally from flatten apply(
@@ -810,11 +859,14 @@ Ring ^ BettiTally := (R,b) -> (
 	     ));
    F)
 -----------------------------------------------------------------------------
+nonMinRes = m -> (
+     F' := resolution image m;
+     complete F';
+     chainComplex apply(1+length F', j-> if j==0 then m else F'.dd_j))
+
 syzygyScheme = (C,i,v) -> (
-     -- this doesn't work any more because 'resolution' replaces the presentation of a cokernel
-     -- by a minimal one.  The right way to fix it is to add an option to resolution.
-     g := extend(resolution cokernel transpose (C.dd_i * v), dual C[i], transpose v);
-     minimalPresentation cokernel (C.dd_1  * transpose g_(i-1)))
+           g := extend(nonMinRes transpose (C.dd_i * v), dual C[-i], transpose v);
+           minimalPresentation cokernel (C.dd_1  * transpose g_(i-1)))
 -----------------------------------------------------------------------------
 chainComplex GradedModule := ChainComplex => {} >> opts -> (M) -> (
      C := new ChainComplex from M;
@@ -1035,26 +1087,31 @@ eagonNorthcott = method(TypicalValue => ChainComplex)
 eagonNorthcott Matrix := f -> (
      -- code is by GREG SMITH, but is experimental, and 
      -- should be replaced by engine code
+     -- Modified by ELIANA DUARTE to fix the grading for matrices 
+     -- with entries of arbitrary degrees.
+     if not isHomogeneous f then error "Matrix not homogeneous.";
      R := ring f;
      m := rank source f;
      n := rank target f;
      B := hashTable apply(toList(1..m-n+2), 
      	  i -> {i, flatten table(subsets(m,n+i-1), compositions(n,i-1), 
 	       	    (p,q) -> {p,q})});
-     d1 := map(R^1, R^{#B#1:-n}, matrix {apply(B#1, r -> determinant f_(r#0))});
-     d := {d1} | apply(toList(2..m-n+2), i -> (
-	       map(R^{#B#(i-1):-n-i+2}, R^{#B#i:-n-i+1}, 
-	       matrix_R table(B#(i-1), B#i, 
-		    (p,q) -> if not isSubset(p#0,q#0) then 0_R
-		    else (
-			 vec := q#1 - p#1;
-			 if any(vec, e -> e < 0 or e > 1) then 0_R 
-			 else (
-			      s := first select(toList(0..#q#0-1), 
-				   l -> not member(q#0#l, p#0));
-      	       		      t := first select(toList(0..n-1), l -> vec#l == 1);
-	       		      (-1)^(s+1)*f_(t,q#0#s)))))));
-     chainComplex d);
+     d1 := map(R^1,, {apply(B#1, r -> determinant f_(r#0))});
+     nextDegrees := toSequence(-flatten degrees source d1);
+     d := {d1};
+     j:=2; while j<m-n+3 do(
+	             d=d|{map(source d_(j-2),, table(B#(j-1), B#j, 
+                          (p,q) -> if not isSubset(p#0,q#0) then 0_R
+                          else (
+                               vec := q#1 - p#1;
+                               if any(vec, e -> e < 0 or e > 1) then 0_R 
+                               else (
+                                    s := first select(toList(0..#q#0-1), 
+                                         l -> not member(q#0#l, p#0));
+                                    t := first select(toList(0..n-1), l -> vec#l == 1);
+                                    (-1)^(s+1)*f_(t,q#0#s)))))};
+		    j=j+1) ;
+      chainComplex d);
 
 ------ koszul
 

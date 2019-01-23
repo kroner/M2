@@ -91,11 +91,11 @@ export hash(x:ZZ):int := (
 getstr(str:charstarOrNull, base:int, x:ZZ) ::= Ccode(charstarOrNull, "mpz_get_str(", str, ",", base, ",", x, ")" );
 
 init(x:ZZ) ::= Ccode( ZZ, "(mpz_init(",  x, "),",x,")" );
-export newZZ():ZZ := init(malloc(ZZ));
+export newZZ():ZZ := init(GCmalloc(ZZ));
 
 set(x:ZZ, y:ZZ) ::= Ccode( ZZ, "(mpz_set(",	  x, ",",  y, "),",x,")" );
 
-export copy(i:ZZ):ZZ := set(init(malloc(ZZ)),i);
+export copy(i:ZZ):ZZ := set(init(GCmalloc(ZZ)),i);
 
 set(x:ZZ, n:int) ::= Ccode( ZZ, "(mpz_set_si(",  x, ",", "(long)", n, "),",x,")" );
 set(x:ZZ, n:ulong) ::= Ccode( ZZ, "(mpz_set_ui(",  x, ",", n, "),",x,")" );
@@ -104,7 +104,7 @@ set(x:ZZ, n:long) ::= Ccode( ZZ, "(mpz_set_si(",  x, ",", n, "),",x,")" );
 negsmall := -100;
 possmall := 300;
 smallints := new array(ZZ) len possmall - negsmall + 1 do for i from negsmall to possmall do (
-     x := malloc(ZZ);
+     x := GCmalloc(ZZ);
      init(x);
      set(x,i);
      provide x
@@ -117,7 +117,7 @@ isSmall(x:ZZ):bool := isInt(x) && (
 export toInteger(i:int):ZZ := (
      if i >= negsmall && i <= possmall then smallints.(i-negsmall)
      else (
-	  x := malloc(ZZ);
+	  x := GCmalloc(ZZ);
 	  init(x);
 	  set(x,i);
 	  x));
@@ -128,7 +128,7 @@ export toInteger(i:ulong):ZZ := (
      if i <= ulong(possmall)
      then smallints.(int(i)-negsmall)
      else (
-	  x := malloc(ZZ);
+	  x := GCmalloc(ZZ);
 	  init(x);
 	  set(x,i);
 	  x));
@@ -136,34 +136,34 @@ export toInteger(i:long):ZZ := (
      if i >= long(negsmall) && i <= long(possmall)
      then smallints.(int(i)-negsmall)
      else (
-	  x := malloc(ZZ);
+	  x := GCmalloc(ZZ);
 	  init(x);
 	  set(x,i);
 	  x));
 neg(x:ZZ, y:ZZ) ::= Ccode( void, "mpz_neg(", x, ",", y, ")" );
 export - (x:ZZ) : ZZ := (
-     y := malloc(ZZ);
+     y := GCmalloc(ZZ);
      init(y);
      neg(y,x);
      y);
 abs(x:ZZ, y:ZZ) ::= Ccode( void, "mpz_abs(", x, ",", y, ")" );
 export abs(x:ZZ) : ZZ := (
      if isNegative0(x) then (
-	  y := malloc(ZZ);
+	  y := GCmalloc(ZZ);
 	  init(y);
 	  abs(y,x);
 	  y)
      else x);
 add(x:ZZ, y:ZZ, z:ZZ) ::= Ccode( void, "mpz_add(", x, ",", y, ",", z, ")" );
 export (x:ZZ) + (y:ZZ) : ZZ := (
-     z := malloc(ZZ);
+     z := GCmalloc(ZZ);
      init(z);
      add(z,x,y);
      z);
 add(x:ZZ, y:ZZ, z:ulong) ::= Ccode( void, "mpz_add_ui(", x, ",", y, ",", z, ")" );
 sub(x:ZZ, y:ZZ, z:ZZ) ::= Ccode( void, "mpz_sub(", x, ",", y, ",", z, ")" );
 export (x:ZZ) - (y:ZZ) : ZZ := (
-     z := malloc(ZZ);
+     z := GCmalloc(ZZ);
      init(z);
      sub(z,x,y);
      z);
@@ -188,7 +188,7 @@ export (x:int) === (y:ZZ) : bool := y === x;
 sub(x:ZZ, y:ZZ, z:ulong) ::= Ccode( void, "mpz_sub_ui(", x, ",", y, ",", z, ")" );
 mul(x:ZZ, y:ZZ, z:ZZ) ::= Ccode( void, "mpz_mul(", x, ",", y, ",", z, ")" );
 export (x:ZZ) * (y:ZZ) : ZZ := (
-     z := malloc(ZZ);
+     z := GCmalloc(ZZ);
      init(z);
      mul(z,x,y);
      z);
@@ -205,14 +205,14 @@ cdiv(x:ZZ, y:ZZ, z:ZZ) ::= Ccode( void, "mpz_cdiv_q(", x, ",", y, ",", z, ")" );
 fdiv(x:ZZ, y:ZZ, z:ZZ) ::= Ccode( void, "mpz_fdiv_q(", x, ",", y, ",", z, ")" );
 
 export (x:ZZ) // (y:ZZ) : ZZ := (
-     z := malloc(ZZ);
+     z := GCmalloc(ZZ);
      init(z);
      if isPositive0(y) then fdiv(z,x,y) else cdiv(z,x,y);
      z);
 
 divexact(x:ZZ, y:ZZ):ZZ := (
      if y === 1 then return x;
-     z := malloc(ZZ);
+     z := GCmalloc(ZZ);
      init(z);
      Ccode( void, "mpz_divexact(", z, ",", x, ",", y, ")" );
      z);
@@ -221,7 +221,7 @@ fmod(x:ZZ, y:ZZ, z:ZZ) ::= Ccode( void, "mpz_fdiv_r(", x, ",", y, ",", z, ")" );
 cmod(x:ZZ, y:ZZ, z:ZZ) ::= Ccode( void, "mpz_cdiv_r(", x, ",", y, ",", z, ")" );
 
 export (x:ZZ) % (y:ZZ) : ZZ := (
-     z := malloc(ZZ);
+     z := GCmalloc(ZZ);
      init(z);
      if isPositive0(y) then fmod(z,x,y) else cmod(z,x,y);
      z);
@@ -229,7 +229,7 @@ export (x:ZZ) % (y:ZZ) : ZZ := (
 fdiv(x:ZZ, y:ZZ, z:ulong) ::= Ccode( void, "mpz_fdiv_q_ui(", x, ",", y, ",", z, ")" );
 
 export (x:ZZ) // (y:ulong) : ZZ := (
-     z := malloc(ZZ);
+     z := GCmalloc(ZZ);
      init(z);
      fdiv(z,x,y);
      z);
@@ -243,7 +243,7 @@ export (x:ZZ) % (y:ushort) : ushort := ushort(x % ulong(y));
 gcd(x:ZZ, y:ZZ, z:ZZ) ::= Ccode( void, "mpz_gcd(", x, ",", y, ",", z, ")" );
 
 export gcd(x:ZZ,y:ZZ):ZZ := (
-     z := malloc(ZZ);
+     z := GCmalloc(ZZ);
      init(z);
      gcd(z,x,y);
      z);
@@ -251,7 +251,7 @@ export gcd(x:ZZ,y:ZZ):ZZ := (
 mul_2exp(x:ZZ, y:ZZ, z:ulong) ::= Ccode( void, "mpz_mul_2exp(", x, ",", y, ",", z, ")" );
 
 leftshift(x:ZZ,n:ulong):ZZ := (
-     z := malloc(ZZ);
+     z := GCmalloc(ZZ);
      init(z);
      mul_2exp(z,x,n);
      z);
@@ -259,7 +259,7 @@ leftshift(x:ZZ,n:ulong):ZZ := (
 tdiv_q_2exp(x:ZZ, y:ZZ, z:ulong) ::= Ccode( void, "mpz_tdiv_q_2exp(", x, ",", y, ",", z, ")" );
 
 rightshift(x:ZZ,n:ulong):ZZ := (
-     z := malloc(ZZ);
+     z := GCmalloc(ZZ);
      init(z);
      tdiv_q_2exp(z,x,n);
      z);
@@ -273,21 +273,21 @@ export (x:ZZ) >> (n:int) : ZZ := (
 
 and(x:ZZ, y:ZZ, z:ZZ) ::= Ccode( void, "mpz_and(", x, ",", y, ",", z, ")" );
 export (x:ZZ) & (y:ZZ) : ZZ := (
-     z := malloc(ZZ);
+     z := GCmalloc(ZZ);
      init(z);
      and(z,x,y);
      z);
 
 ior(x:ZZ, y:ZZ, z:ZZ) ::= Ccode( void, "mpz_ior(", x, ",", y, ",", z, ")" );
 export (x:ZZ) | (y:ZZ) : ZZ := (
-     z := malloc(ZZ);
+     z := GCmalloc(ZZ);
      init(z);
      ior(z,x,y);
      z);
 
 xor(x:ZZ, y:ZZ, z:ZZ) ::= Ccode( void, "mpz_xor(", x, ",", y, ",", z, ")" );
 export (x:ZZ) ^^ (y:ZZ) : ZZ := (
-     z := malloc(ZZ);
+     z := GCmalloc(ZZ);
      init(z);
      xor(z,x,y);
      z);
@@ -415,47 +415,47 @@ export isNegative(x:QQ):bool := isNegative0(x);
 
 init(x:QQ) ::= Ccode( void, "mpq_init(",  x, ")" );
 
-newRational():QQ := (
-     x := malloc(QQ);
+newQQ():QQ := (
+     x := GCmalloc(QQ);
      init(x);
      x);
 
-export newRational(i:ZZ,j:ZZ):QQ := (
-     x := malloc(QQ);
+export newQQ(i:ZZ,j:ZZ):QQ := (
+     x := GCmalloc(QQ);
      init(x);
      set(  numeratorRef(x),i);
      set(denominatorRef(x),j);
      Ccode(void, "mpq_canonicalize(",x,")");
      x);
 
-export newRationalCanonical(i:ZZ,j:ZZ):QQ := ( -- assume gcd(i,j)=1, j>0, and j==1 if i==0
-     x := malloc(QQ);
+export newQQCanonical(i:ZZ,j:ZZ):QQ := ( -- assume gcd(i,j)=1, j>0, and j==1 if i==0
+     x := GCmalloc(QQ);
      init(x);
      set(  numeratorRef(x),i);
      set(denominatorRef(x),j);
      x);
 
 export toRational(n:int):QQ := (
-     x := newRational();
+     x := newQQ();
      Ccode( void, "mpq_set_si(",  x, ",(long)", n, ",(long)1)" );
      x);
 
 export toRational(n:ulong):QQ := (
-     x := newRational();
+     x := newQQ();
      Ccode( void, "mpq_set_ui(",  x, ",(unsigned long)", n, ",(unsigned long)1)" );
      x);
 
 -- integers and rationals
      
 export toRational(x:ZZ):QQ := (
-     z := newRational();
+     z := newQQ();
      Ccode(void, "mpq_set_z(", z, ",", x, ")");
      z);
 
 export floor(x:QQ):ZZ := numeratorRef(x)//denominatorRef(x);
 
 export (x:QQ) + (y:QQ) : QQ := (
-     z := newRational();
+     z := newQQ();
      Ccode( void,
           "mpq_add(",
 	       z, ",", 
@@ -466,7 +466,7 @@ export (x:QQ) + (y:QQ) : QQ := (
      z);
 
 export - (y:QQ) : QQ := (
-     z := newRational();
+     z := newQQ();
      Ccode( void,
 	  "mpq_neg(",
 	       z, ",", 
@@ -478,7 +478,7 @@ export - (y:QQ) : QQ := (
 export abs(x:QQ) : QQ := if isNegative0(x) then -x else x;
 
 export inv(y:QQ) : QQ := (			    -- reciprocal
-     z := newRational();
+     z := newQQ();
      Ccode( void,
 	  "mpq_inv(",
 	       z, ",", 
@@ -488,7 +488,7 @@ export inv(y:QQ) : QQ := (			    -- reciprocal
      z);
 
 export (x:QQ) - (y:QQ) : QQ := (
-     z := newRational();
+     z := newQQ();
      Ccode( void,
           "mpq_sub(",
 	       z, ",", 
@@ -499,7 +499,7 @@ export (x:QQ) - (y:QQ) : QQ := (
      z);
 
 export (x:QQ) * (y:QQ) : QQ := (
-     z := newRational();
+     z := newQQ();
      Ccode( void,
           "mpq_mul(",
 	       z, ",", 
@@ -510,7 +510,7 @@ export (x:QQ) * (y:QQ) : QQ := (
      z);
 
 export (x:QQ) / (y:QQ) : QQ := (
-     z := newRational();
+     z := newQQ();
      Ccode( void,
           "mpq_div(",
 	       z, ",", 
@@ -622,6 +622,7 @@ isNegative0(x:RR) ::= -1 == Ccode(int, "mpfr_sgn(", x, ")");
 isZero0    (x:RR) ::=  0 == Ccode(int, "mpfr_sgn(", x, ")");
 
 flagged0() ::= 0 != Ccode( int, "mpfr_erangeflag_p()" );
+setflag0() ::= Ccode( void, "mpfr_set_erangeflag()" );
 isfinite0(x:RR) ::=Ccode(bool,"mpfr_number_p(",x,")");
 isinf0 (x:RR) ::= Ccode(bool,"mpfr_inf_p(",x,")");
 isnan0 (x:RR) ::= Ccode(bool,"mpfr_nan_p(",x,")");
@@ -650,7 +651,7 @@ export exponent(x:CC):long := max(exponent(x.re),exponent(x.im));
 
 export newRR(prec:ulong):RR := (
      if prec < minprec then prec = minprec else if prec > maxprec then prec = maxprec;
-     x := malloc(RR);
+     x := GCmalloc(RR);
      Ccode( void, "mpfr_init2(", x, ",(mpfr_prec_t)",prec,")" );
      x);
 export newCC(prec:ulong):CC := CC(newRR(prec),newRR(prec));
@@ -718,7 +719,9 @@ export nanRR(prec:ulong):RR := (
      x);
 
 export toCC(x:RR,y:RR):CC := (
-     if precision0(x) == precision0(y) then CC(x,y)
+     if ( isnan0(x) || isnan0(y) ) then (prec := precision0(x); z := nanRR(prec); CC(z,z))
+     else if ( isinf0(x) || isinf0(y) ) then (prec := precision0(x); z := infinityRR(prec,1); CC(z,z))
+     else if precision0(x) == precision0(y) then CC(x,y)
      else if precision0(x) < precision0(y) then CC(x,toRR(y,precision0(x)))
      else CC(toRR(x,precision0(y)),y)
      );
@@ -754,32 +757,30 @@ export isinf(x:CC):bool := isinf0(x.re) && !isnan0(x.im) || isinf0(x.im) && !isn
 export isnan(x:CC):bool := isnan0(x.re) || isnan0(x.im);
 
 export (x:RR) === (y:RR):bool := (			    -- weak equality
-     Ccode( void, "mpfr_clear_flags()" );		    -- do we need this?
+     Ccode( void, "mpfr_clear_flags()" );
      0 != Ccode( int, "mpfr_equal_p(",  x, ",",  y, ")" )
      && !flagged0()
      );
 
 export strictequality(x:RR,y:RR):bool := (
-     Ccode( void, "mpfr_clear_flags()" );		    -- do we need this?
+     Ccode( void, "mpfr_clear_flags()" );
      0 != Ccode( int, "mpfr_equal_p(",  x, ",",  y, ")" )
      && !flagged0()
      && sign0(x) == sign0(y)
      && precision0(x) == precision0(y)
      );
 
-compare0(x:RR, y:RR) ::= (
-     Ccode( void, "mpfr_clear_flags()" );		    -- do we need this?
-     Ccode( int, "mpfr_cmp(",  x, ",",  y, ")" ));
+compare0(x:RR, y:RR) ::= Ccode( int, "(mpfr_clear_flags(),mpfr_cmp(",  x, ",",  y, "))" );
 export compare(x:RR, y:RR):int := compare0(x,y);	    -- use flagged(), too!
 export (x:RR)  >  (y:RR) : bool := compare0(x,y) >  0 && !flagged0();
 export (x:RR)  <  (y:RR) : bool := compare0(x,y) <  0 && !flagged0();
 export (x:RR)  >= (y:RR) : bool := compare0(x,y) >= 0 && !flagged0();
 export (x:RR)  <= (y:RR) : bool := compare0(x,y) <= 0 && !flagged0();
 
-compare0(x:RR, y:long) ::= Ccode( int, "mpfr_cmp_si(",  x, ",", y, ")" );
-compare0(x:RR, y:int) ::= Ccode( int, "mpfr_cmp_si(",  x, ",(long)", y, ")" );
-export compare(x:RR, y:long):int := Ccode( int, "mpfr_cmp_si(",  x, ",", y, ")" );
-export compare(y:long, x:RR):int := Ccode( int, "-mpfr_cmp_si(",  x, ",", y, ")" );
+compare0(x:RR, y:long) ::= Ccode( int, "(mpfr_clear_flags(),mpfr_cmp_si(",  x, ",", y, "))" );
+compare0(x:RR, y:int ) ::= Ccode( int, "(mpfr_clear_flags(),mpfr_cmp_si(",  x, ",(long)", y, "))" );
+export compare(x:RR, y:long):int := Ccode( int, "(mpfr_clear_flags(), mpfr_cmp_si(",  x, ",", y, "))" );
+export compare(y:long, x:RR):int := Ccode( int, "(mpfr_clear_flags(),-mpfr_cmp_si(",  x, ",", y, "))" );
 export (x:RR)  >  (y:int) : bool :=  compare0(x,long(y)) >  0 && !flagged0();
 export (x:RR)  >= (y:int) : bool :=  compare0(x,long(y)) >= 0 && !flagged0();
 export (x:RR) === (y:int) : bool :=  compare0(x,long(y)) == 0 && !flagged0();
@@ -788,18 +789,18 @@ export (x:RR)  <= (y:int) : bool :=  compare0(x,long(y)) <= 0 && !flagged0();
 
 export (x:CC) === (y:int) : bool :=  x.re === y && x.im === 0;
 
-compare0(x:RR, y:double) ::= Ccode( int, "mpfr_cmp_d(",  x, ",", y, ")" );
-export compare(x:RR, y:double):int := Ccode( int, "mpfr_cmp_d(",  x, ",", y, ")" );
-export compare(y:double, x:RR):int := Ccode( int, "-mpfr_cmp_d(",  x, ",", y, ")" );
+compare0(x:RR, y:double) ::= Ccode( int, "(mpfr_clear_flags(),mpfr_cmp_d(",  x, ",", y, "))" );
+export compare(x:RR, y:double):int := Ccode( int, "(mpfr_clear_flags(), mpfr_cmp_d(",  x, ",", y, "))" );
+export compare(y:double, x:RR):int := Ccode( int, "(mpfr_clear_flags(),-mpfr_cmp_d(",  x, ",", y, "))" );
 export (x:RR)  >  (y:double) : bool :=  compare0(x,y) >  0 && !flagged0();
 export (x:RR)  >= (y:double) : bool :=  compare0(x,y) >= 0 && !flagged0();
 export (x:RR) === (y:double) : bool :=  compare0(x,y) == 0 && !flagged0();
 export (x:RR)  <  (y:double) : bool :=  compare0(x,y) <  0 && !flagged0();
 export (x:RR)  <= (y:double) : bool :=  compare0(x,y) <= 0 && !flagged0();
 
-compare0(x:RR, y:ZZ) ::= Ccode( int, "mpfr_cmp_z(",  x, ",", y, ")" );
-export compare(x:RR, y:ZZ):int := Ccode( int, "mpfr_cmp_z(",  x, ",", y, ")" );
-export compare(y:ZZ, x:RR):int := Ccode( int, "-mpfr_cmp_z(",  x, ",", y, ")" );
+compare0(x:RR, y:ZZ) ::= Ccode( int, "(mpfr_clear_flags(),mpfr_cmp_z(",  x, ",", y, "))" );
+export compare(x:RR, y:ZZ):int := Ccode( int, "(mpfr_clear_flags(), mpfr_cmp_z(",  x, ",", y, "))" );
+export compare(y:ZZ, x:RR):int := Ccode( int, "(mpfr_clear_flags(),-mpfr_cmp_z(",  x, ",", y, "))" );
 export (x:RR)  >  (y:ZZ) : bool :=  compare0(x,y) >  0 && !flagged0();
 export (x:RR)  >= (y:ZZ) : bool :=  compare0(x,y) >= 0 && !flagged0();
 export (x:RR) === (y:ZZ) : bool :=  compare0(x,y) == 0 && !flagged0();
@@ -807,9 +808,9 @@ export (y:ZZ) === (x:RR) : bool :=  compare0(x,y) == 0 && !flagged0();
 export (x:RR)  <  (y:ZZ) : bool :=  compare0(x,y) <  0 && !flagged0();
 export (x:RR)  <= (y:ZZ) : bool :=  compare0(x,y) <= 0 && !flagged0();
 
-compare0(x:RR, y:QQ) ::= Ccode( int, "mpfr_cmp_q(",  x, ",", y, ")" );
-export compare(x:RR, y:QQ):int := Ccode( int, "mpfr_cmp_q(",  x, ",", y, ")" );
-export compare(y:QQ, x:RR):int := Ccode( int, "-mpfr_cmp_q(",  x, ",", y, ")" );
+compare0(x:RR, y:QQ) ::= Ccode( int, "(mpfr_clear_flags(),mpfr_cmp_q(",  x, ",", y, "))" );
+export compare(x:RR, y:QQ):int := Ccode( int, "(mpfr_clear_flags(), mpfr_cmp_q(",  x, ",", y, "))" );
+export compare(y:QQ, x:RR):int := Ccode( int, "(mpfr_clear_flags(),-mpfr_cmp_q(",  x, ",", y, "))" );
 export (x:RR)  >  (y:QQ) : bool :=  compare0(x,y) >  0 && !flagged0();
 export (x:RR)  >= (y:QQ) : bool :=  compare0(x,y) >= 0 && !flagged0();
 export (x:RR) === (y:QQ) : bool :=  compare0(x,y) == 0 && !flagged0();
@@ -1107,50 +1108,50 @@ export (x:RR) >> (n:int) : RR := x << long(-n);
 
 -- complex arithmetic
 
-export (x:CC) + (y:CC) : CC := CC(x.re+y.re, x.im+y.im);
-export (x:CC) - (y:CC) : CC := CC(x.re-y.re, x.im-y.im);
-export (x:RR) - (y:CC) : CC := CC(x-y.re,-y.im);
-export (x:int) - (y:CC) : CC := CC(x-y.re,-y.im);
-export (x:CC) - (y:RR) : CC := CC(x.re-y,x.im);
-export (x:CC) + (y:RR) : CC := CC(x.re+y,x.im);
-export (x:RR) + (y:CC) : CC := CC(x+y.re,y.im);
-export -(y:CC) : CC := CC(-y.re,-y.im);
+export (x:CC) + (y:CC) : CC := toCC(x.re+y.re, x.im+y.im);
+export (x:CC) - (y:CC) : CC := toCC(x.re-y.re, x.im-y.im);
+export (x:RR) - (y:CC) : CC := toCC(x-y.re,-y.im);
+export (x:int) - (y:CC) : CC := toCC(x-y.re,-y.im);
+export (x:CC) - (y:RR) : CC := toCC(x.re-y,x.im);
+export (x:CC) + (y:RR) : CC := toCC(x.re+y,x.im);
+export (x:RR) + (y:CC) : CC := toCC(x+y.re,y.im);
+export -(y:CC) : CC := toCC(-y.re,-y.im);
 
 export (x:CC) * (y:RR) : CC := (
      if isfinite0(x.re) && isfinite0(x.im) && isfinite0(y)
-     then CC(x.re*y, x.im*y)
+     then toCC(x.re*y, x.im*y)
      else if isnan(x) || isnan(y) then nanCC(min(precision(x),precision(y)))
      else infinityCC(min(precision(x),precision(y))));
 export (y:RR) * (x:CC) : CC := (
      if isfinite0(x.re) && isfinite0(x.im) && isfinite(y)
-     then CC(x.re*y, x.im*y)
+     then toCC(x.re*y, x.im*y)
      else if isnan(x) || isnan(y) then nanCC(min(precision(x),precision(y)))
      else infinityCC(min(precision(x),precision(y))));
 export (y:int) * (x:CC) : CC := (
      if isinf(x) && y != 0
      then infinityCC(precision(x))
-     else CC(x.re*y, x.im*y));
+     else toCC(x.re*y, x.im*y));
 export (x:CC) * (y:ZZ) : CC := (
      if isinf(x) && !isZero(y)
      then infinityCC(precision(x))
-     else CC(x.re*y, x.im*y));
+     else toCC(x.re*y, x.im*y));
 export (y:ZZ) * (x:CC) : CC := (
      if isinf(x) && !isZero(y)
      then infinityCC(precision(x))
-     else CC(x.re*y, x.im*y));
+     else toCC(x.re*y, x.im*y));
 export (x:CC) * (y:CC) : CC := (
      if isinf(x) && !isZero(y) && !isnan(y) || isinf(y) && !isZero(x) && !isnan(x)
      then infinityCC(min(precision(x),precision(y)))
-     else CC(x.re*y.re-x.im*y.im, x.im*y.re+x.re*y.im));
+     else toCC(x.re*y.re-x.im*y.im, x.im*y.re+x.re*y.im));
 export (x:CC) / (y:RR) : CC := (
      if isZero(y) && !isnan(x) && !isZero(x)
      then infinityCC(min(precision(x),precision(y)))
-     else CC(x.re/y, x.im/y));
+     else toCC(x.re/y, x.im/y));
 export (x:CC) / (y:int) : CC := (
      if y == 0 && !isnan(x) && !isZero(x)
      then infinityCC(precision(x))
-     else CC(x.re/y, x.im/y));
-export conj(x:CC):CC := CC(x.re,-x.im);
+     else toCC(x.re/y, x.im/y));
+export conj(x:CC):CC := toCC(x.re,-x.im);
 export norm2(x:CC):RR := x.re*x.re + x.im*x.im;
 
 export (x:CC) << (n:long) : CC := if n == long(0) then x else CC(x.re<<n,x.im<<n);
@@ -1185,30 +1186,58 @@ export (x:CC) === (y:QQ) : bool := x.re === y && x.im === 0;
 export (x:QQ) === (y:CC) : bool := x === y.re && y.im === 0;
 
 export compare(x:CC,y:CC):int := (
+     if ( isinf(x.re) || isinf(y.re) || isinf(x.im) || isinf(y.im) ) then (
+       setflag0();
+       return 0;
+     );
      r := compare(x.re,y.re);
      if flagged() || r != 0 then r
      else compare(x.im,y.im));
 export compare(x:CC,y:RR):int := (
+     if ( isinf(x.re) || isinf(x.im) || isinf(y) ) then (
+       setflag0();
+       return 0;
+     );
      r := compare(x.re,y);
      if flagged() || r != 0 then r
      else compare0(x.im,0));
 export compare(x:RR,y:CC):int := (
+     if ( isinf(x) || isinf(y.re) || isinf(y.im) ) then (
+       setflag0();
+       return 0;
+     );
      r := compare(x,y.re);
      if flagged() || r != 0 then r
      else -compare0(y.im,0));
 export compare(x:CC,y:ZZ):int := (
+     if ( isinf(x.re) || isinf(x.im) ) then (
+       setflag0();
+       return 0;
+     );
      r := compare(x.re,y);
      if flagged() || r != 0 then r
      else compare0(x.im,0));
 export compare(x:ZZ,y:CC):int := (
+     if ( isinf(y.re) || isinf(y.im) ) then (
+       setflag0();
+       return 0;
+     );
      r := compare(x,y.re);
      if flagged() || r != 0 then r
      else -compare0(y.im,0));
 export compare(x:CC,y:QQ):int := (
+     if ( isinf(x.re) || isinf(x.im) ) then (
+       setflag0();
+       return 0;
+     );
      r := compare(x.re,y);
      if flagged() || r != 0 then r
      else compare0(x.im,0));
 export compare(x:QQ,y:CC):int := (
+     if ( isinf(y.re) || isinf(y.im) ) then (
+       setflag0();
+       return 0;
+     );
      r := compare(x,y.re);
      if flagged() || r != 0 then r
      else -compare0(y.im,0));

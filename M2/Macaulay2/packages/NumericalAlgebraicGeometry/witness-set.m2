@@ -4,9 +4,10 @@
 ------------------------------------------------------
 
 export { 
-    sample, 
-    union, -- aka "|"
-    removeRedundantComponents 
+    "isOn",
+    "sample", 
+    "union", -- aka "|"
+    "removeRedundantComponents"
     }
 
 polySystem WitnessSet := W->if W.?SolutionSystem then W.SolutionSystem else 
@@ -33,6 +34,7 @@ randomSlice (ZZ,ZZ,Ring,Point) := (d,n,C,point) -> (
 randomSlice (ZZ,ZZ) := (d,n) -> randomSlice(d,n,CC_53)
 randomSlice (ZZ,ZZ,Point) := (d,n,point) -> randomSlice(d,n,CC_53,point)
 
+isOn = method(Options=>{Tolerance=>null,Software=>null})
 isOn (Point,WitnessSet) := o -> (p, W) -> (
     o = fillInDefaultOptions o;
     if # coordinates p != numgens ring W 
@@ -124,7 +126,7 @@ movePoints (WitnessSet, List, List, List) := List => o -> (W,S,S',w) -> (
 		     NumericalAlgebraicGeometry$gamma=>exp(random(0.,2*pi)*ii), Software=>o.Software)
 		 --)
 	     ;
-	     success = all(w', p->member(status p, {Regular{*,Singular*}}));
+	     success = all(w', p->member(status p, {Regular-*,Singular*-}));
 	     )
 	 else (
 	     assert all(w, p->p.LiftedSystem===P.LiftedSystem); -- !!!
@@ -134,7 +136,7 @@ movePoints (WitnessSet, List, List, List) := List => o -> (W,S,S',w) -> (
 		     NumericalAlgebraicGeometry$gamma=>exp(random(0.,2*pi)*ii), Software=>o.Software)
 		 --)
 		 ;
-	     if success = all(lifted'w', p->member(status p, {Regular{*,Singular*}})) 
+	     if success = all(lifted'w', p->member(status p, {Regular-*,Singular*-})) 
 	     then w' = apply(lifted'w', p->(
 		     q := new Point from P;
 		     q.System = ES';
@@ -149,6 +151,9 @@ movePoints (WitnessSet, List, List, List) := List => o -> (W,S,S',w) -> (
 
      w'
      )
+
+
+moveSlicingVariety(WitnessSet,SlicingVariety) := (W,S) -> moveSlice(W,flatten entries map S)
 
 moveSlice = method(TypicalValue=>WitnessSet, Options=>{Software=>null})
 moveSlice (WitnessSet, List) := List => o -> (W,S') -> (
@@ -239,9 +244,8 @@ witnessSet (Ideal,ZZ) := (I,d) -> ( -- assume: dim I == d
      SM := (randomUnitaryMatrix n)^(toList(0..d-1))|random(CC^d,CC^1);
      S := ideal(promote(SM,R) * ((transpose vars R)||matrix{{1_R}}));
      P := solveSystem(F | S_*);
-     witnessSet(ideal F, SM, 
-	 if numgens I == n-d then P else select(P, p->isOn(p,I))
-	 )
+     w'points := if numgens I == n-d then P else select(P, p->isOn(p,I));
+     witnessSet(ideal F, SM, w'points)
      )
 
 TEST ///

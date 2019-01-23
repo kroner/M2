@@ -17,26 +17,26 @@ newPackage(
 
 -- Put here the name of functions that should be visible to users
 export{
-RootSystem, 
-cartanMatrix, 
-rootSystem, rootSystemA, rootSystemB, rootSystemC, rootSystemD, rootSystemE, rootSystemF4, rootSystemG2, 
-Weight, 
-weight, 
-Root, 
-isPositiveRoot, isRoot, addRoots,
-halfSumOfRoots, reflect, simpleRoot, rootCoefficients, 
-WeylGroupElement, 
-reduce, reducedDecomposition, isReduced, coxeterLength, longestWeylGroupElement, positiveRoots, reflection, scalarProduct, eval, isReflection, whoseReflection, 
-Parabolic, WeylGroupLeftCoset, WeylGroupRightCoset, WeylGroupDoubleCoset, 
-parabolic, minimalRepresentative, isMinimalRepresentative, 
-DynkinDiagram, DynkinType, 
-dynkinDiagram, connectedComponents, endVertices, dynkinType, dynkinExponents,
-poincareSeries,
-HasseDiagram, HasseGraph, 
-hasseDiagramToGraph, hasseGraphToPicture, storeHasseGraph, loadHasseGraph,
-underBruhat, aboveBruhat,
-isLtBruhat, intervalBruhat,
-numberOfPositiveRoots, listWeylGroupElements, neutralWeylGroupElement
+"RootSystem", 
+"cartanMatrix", 
+"rootSystem", "rootSystemA", "rootSystemB", "rootSystemC", "rootSystemD", "rootSystemE", "rootSystemF4", "rootSystemG2", 
+"Weight", 
+"weight", 
+"Root", 
+"isPositiveRoot", "isRoot", "addRoots",
+"halfSumOfRoots", "reflect", "simpleRoot", "rootCoefficients", 
+"WeylGroupElement", 
+"reduce", "reducedDecomposition", "isReduced", "coxeterLength", "longestWeylGroupElement", "positiveRoots", "reflection", "scalarProduct", "eval", "isReflection", "whoseReflection", 
+"Parabolic", "WeylGroupLeftCoset", "WeylGroupRightCoset", "WeylGroupDoubleCoset", 
+"parabolic", "minimalRepresentative", "isMinimalRepresentative", 
+"DynkinDiagram", "DynkinType", 
+"dynkinDiagram", "connectedComponents", "endVertices", "dynkinType", "dynkinExponents",
+"poincareSeries",
+"HasseDiagram", "HasseGraph", 
+"hasseDiagramToGraph", "hasseGraphToPicture", "storeHasseGraph", "loadHasseGraph",
+"underBruhat", "aboveBruhat",
+"isLtBruhat", "intervalBruhat",
+"numberOfPositiveRoots", "listWeylGroupElements", "neutralWeylGroupElement"
 }
 
 -- Variables that can be modified by the user
@@ -4404,7 +4404,7 @@ TEST ///
         set{"2"}})
     -- we should check that the links are correct too.
     -- the following is one possible answer, but it can change.  Why?!
-    {*
+    -*
       assert(G#0 == {{"12132", {{"3", 0}, {"2", 1}}}});
       assert(G#1 == {
               {"2132", {{"232", 1}, {"2", 2}}}, 
@@ -4417,7 +4417,7 @@ TEST ///
               });
       assert(G#3 == {{"12", {{"121", 0}}}, {"21", {{"1", 0}}}, {"23", {{"3", 0}}}})
       assert(G#4 == {{"2", {}}})
-      *}
+      *-
 ///
 
 doc ///

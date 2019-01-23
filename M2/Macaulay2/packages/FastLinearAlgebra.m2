@@ -1,4 +1,7 @@
 -- -*- coding: utf-8 -*-
+
+error "the FastLinearAlgebra package has been deprecated"
+
 newPackage(
 	"FastLinearAlgebra",
 	AuxiliaryFiles => true,
@@ -19,21 +22,21 @@ newPackage(
 
 -- also: rank, det, solve
 export {
-   ARing,
-   powerMod,
-   mult,
-   RightSide,
-   characteristicPolynomial,
-   minimalPolynomial,
---   nullSpace,
-   invert,
-   addMultipleTo,
-   addMultipleToExt,
-   solveLinear,
-   TransposeA,
-   TransposeB,
-   Alpha,
-   Beta
+   "ARing",
+   "powerMod",
+   "mult",
+   "RightSide",
+   "characteristicPolynomial",
+   "minimalPolynomial",
+--   "nullSpace",
+   "invert",
+   "addMultipleTo",
+   "addMultipleToExt",
+   "solveLinear",
+   "TransposeA",
+   "TransposeB",
+   "Alpha",
+   "Beta"
    }
 
 debug Core

@@ -53,16 +53,18 @@ TEST ///
   assert(minprimes ideal(1_A) == {})
 ///
 
-TEST ///
-  needsPackage "MinimalPrimes"
-  R = QQ[x,r,v,u,b, MonomialOrder=>{Lex=>5}]
-  I = ideal(b^3-7*b^2+14*b-7,r^2-u*r+(-2*b^2+9*b-5)*u^2+b^2-4*b,x^2+(b-2)*x*r+r^2+b^2-4*b)
-  time minprimes(I, Verbosity=>2)
+-- the following test sometimes crashes on the last line, but you might have to run it more than 30 times to observe it
+
+-- TEST ///
+--   needsPackage "MinimalPrimes"
+--   R = QQ[x,r,v,u,b, MonomialOrder=>{Lex=>5}]
+--   I = ideal(b^3-7*b^2+14*b-7,r^2-u*r+(-2*b^2+9*b-5)*u^2+b^2-4*b,x^2+(b-2)*x*r+r^2+b^2-4*b)
+--   time minprimes(I, Verbosity=>2)
   
-  R = QQ[b][u][x,r,v, MonomialOrder=>{Lex=>3}]
-  I = ideal(b^3-7*b^2+14*b-7,r^2-u*r+(-2*b^2+9*b-5)*u^2+b^2-4*b,x^2+(b-2)*x*r+r^2+b^2-4*b)
-  time minprimes(I, Verbosity=>2)
-///
+--   R = QQ[b][u][x,r,v, MonomialOrder=>{Lex=>3}]
+--   I = ideal(b^3-7*b^2+14*b-7,r^2-u*r+(-2*b^2+9*b-5)*u^2+b^2-4*b,x^2+(b-2)*x*r+r^2+b^2-4*b)
+--   time minprimes(I, Verbosity=>2)
+-- ///
 
 -- radicalContainment
 TEST ///
@@ -180,7 +182,7 @@ TEST ///
 ---        the built in general strategies.  At this time, there are only 2
 ---        namely BirationalStrat and NoBirationalStrat.  Also should come up with
 ---        some better names for these probably.
-{*
+-*
 TEST ///
   debug needsPackage "MinimalPrimes"
   R = QQ[a,b,c,d,e,h]
@@ -401,7 +403,7 @@ TEST ///
     -b2-c2+2bx+2cy,
     -d2-f2-g2+2dx+2fy+2gz"
 ///
-*}
+*-
 
 -------------------------------------
 --- Primary Decomposition tests below
@@ -436,14 +438,14 @@ SIMPLETEST ///
   -- TODO: Change the below tests to work with the new
   -- strategies.  Need one test for each of the built-in
   -- strategies. 
-  {*
+  -*
   C1 = minprimes( I, "UseColon" => false);
   checkMinimalPrimes(I, C1, "Answer" => decompose)
   C2 = minprimes( I, "SimplifyIdeal" => false);
   checkMinimalPrimes(I, C2, "Answer" => decompose)
   C3 = minprimes( I, "FactorizationSplit" => true );
   checkMinimalPrimes(I, C3, "Answer" => decompose)
-  *}
+  *-
 ///
 
 SIMPLETEST ///
@@ -1317,7 +1319,7 @@ TEST ///
        2*e_1*e_2*e_4-3*e_2*g_1*g_4+3*e_1*g_2*g_4,
        2*e_1*e_2*e_3-3*e_2*g_1*g_3+3*e_1*g_2*g_3)
   time minprimes(J,Verbosity=>2);
-  {*
+  -*
   C = splitIdeal(J,Strategy=>{defaultStrat,(IndependentSet,infinity)}, Verbosity=>2)
   C / isPrime
   J2 = C#2
@@ -1333,7 +1335,7 @@ TEST ///
   factorOverTower({lexGBOverBase#0}, lexGBOverBase#1)
   factorOverTower(drop(lexGBOverBase,-1), lexGBOverBase#2, Verbosity=>2)
   splitIdeal(J2,Strategy=>SplitTower, Verbosity=>2)
-  *}
+  *-
   --C = time minprimes(J,Strategy=>{Linear,Birational,Factorization,Linear,Birational,Minprimes});
 ///
 
@@ -1475,6 +1477,24 @@ TEST ///
   assert(detectMembership(1_R,J') === null)
 ///
 
+TEST ///
+  -- this test occurs as a crash in github issue #190.
+  -- seems to work after recent changes to factory.
+  -- it might be too long for a test...
+ needsPackage "MinimalPrimes"
+  R = QQ[x,r,v,u,b, MonomialOrder=>{Lex=>5}]
+  I = ideal(b^3-7*b^2+14*b-7,r^2-u*r+(-2*b^2+9*b-5)*u^2+b^2-4*b,x^2+(b-2)*x*r+r^2+b^2-4*b)
+  time C1 = minprimes(I, Verbosity=>2)
+  assert(#oo == 2)
+
+  R = QQ[b][u][x,r,v, MonomialOrder=>{Lex=>3}]
+  I = ideal(b^3-7*b^2+14*b-7,r^2-u*r+(-2*b^2+9*b-5)*u^2+b^2-4*b,x^2+(b-2)*x*r+r^2+b^2-4*b)
+  time C2 = minprimes(I, Verbosity=>2)
+  assert(#C2 == 2)
+  C1' = for i in C1 list sub(i,R);
+  assert(C1'_0 == C2_0 or C1'_0 == C2_1);
+  assert(C1'_1 == C2_0 or C1'_1 == C2_1);
+///
 end
 
 -- UHOH problem with finite fields

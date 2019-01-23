@@ -6,11 +6,10 @@ newPackage ( "Classic",
      Date => "June, 2006",
      Version => "1.0",
      Headline => "a classic Macaulay parser",
-     DebuggingMode => false
+     PackageImports => {"Parsing"}
      )
 
-needsPackage "Parsing"
-
+-- the following comment is needed:
 -- start --
 symbolP = (x -> (
 	  if not isGlobalSymbol x then error("symbol ",x," undefined");
@@ -30,7 +29,7 @@ polyP = plus @@ deepSplice % +monomialP | terminalParser 0
 parenExprP = ((l,x,r) -> x) % andP("(", futureParser parenExprP | polyP, ")")
 listPolyP = toList % seqP_"," polyP
 arrayPolyP = toList % seqP_";" listPolyP
-export poly ; poly = method()
+export "poly" ; poly = method()
 poly String :=  RingElement => polyP : nonspaceAnalyzer
 ideal String := Ideal => ideal % listPolyP : nonspaceAnalyzer
 monomialIdeal String := MonomialIdeal => 
@@ -38,6 +37,7 @@ monomialIdeal String := MonomialIdeal =>
 matrix String := Matrix => opts -> 
                   matrix_opts % arrayPolyP : nonspaceAnalyzer
 -- end --
+-- the preceding comment is needed:
 
 beginDocumentation()
 

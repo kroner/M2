@@ -10,10 +10,11 @@ newPackage(
                 {Name => "Viktor Petrov"}
 		},
 	Headline => "Package to deal with commutative formal group laws",
+	PackageImports => {"Truncations"},
 	DebuggingMode => false)
 
 -- Put here the name of functions that should be visible to users
-export{series, FormalGroupLaw, FormalSeries, valuation, compositionInverse, FGL, FormalGroupPoint, universalFGL, universalFGLQ, formalGroupPoint
+export{"series", "FormalGroupLaw", "FormalSeries", "valuation", "compositionInverse", "FGL", "FormalGroupPoint", "universalFGL", "universalFGLQ", "formalGroupPoint"
 }
 
 -- Variables that can be modified by the user

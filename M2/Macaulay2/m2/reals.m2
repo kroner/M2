@@ -216,12 +216,19 @@ lngamma ZZ := lngamma QQ := lngamma RR := x -> (
      if s == -1 then y + ii * numeric_(precision y) pi else y
      )
 
-expression Constant := c -> expression c#0
+expression Constant := hold
 toString Constant := net Constant := c -> toString c#0
 toExternalString Constant := c -> toString c#0
 numeric Constant := c -> c#1 defaultPrecision
 numeric(ZZ,Constant) := (prec,c) -> c#1 prec
 exp Constant := c -> exp numeric c
+
+constantTexMath := new HashTable from {
+    symbol pi => "\\pi",
+    symbol EulerConstant => "\\gamma",
+    symbol ii => "\\mathbf{i}"
+    }
+texMath Constant := c -> if constantTexMath#?(c#0) then constantTexMath#(c#0) else texMath toString c#0
 
 Constant + Constant := (c,d) -> numeric c + numeric d
 Constant + RingElement := 
@@ -270,6 +277,15 @@ Number / Constant := (x,c) -> x / numeric c
 Constant ^ Number := (c,x) -> (numeric c) ^ x
 Number ^ Constant := (x,c) -> x ^ (numeric c)
 
+Constant + InfiniteNumber := (c,x) -> x
+InfiniteNumber + Constant := (x,c) -> x
+Constant - InfiniteNumber := (c,x) -> -x
+InfiniteNumber - Constant := (x,c) -> x
+Constant * InfiniteNumber := (c,x) -> (numeric c)*x
+InfiniteNumber * Constant := (x,c) -> x*(numeric c)
+Constant // InfiniteNumber := Constant / InfiniteNumber := (c,x) -> 0
+InfiniteNumber // Constant := (x,c) -> x // (numeric c)
+InfiniteNumber / Constant := (x,c) -> x / (numeric c)
 Constant ! := c -> (numeric c)!
 
 -- printing
@@ -306,6 +322,7 @@ net InexactField := R -> net expression R
 net CC := z -> simpleToString z
 toExternalString RR := toExternalString0
 toExternalString CC := toExternalString0
+texMath CC := x -> texMath expression x
 withFullPrecision = f -> (
      prec := printingPrecision;
      acc := printingAccuracy;
@@ -324,12 +341,12 @@ InexactNumber#{Standard,AfterPrint} = x -> (
      prec := precision x;
      -- if prec =!= defaultPrecision then
      << " (of precision " << prec << ")";
-     {*
+     -*
      while parent y =!= Thing do (
 	  y = parent y;
 	  << " < " << y;
 	  );
-     *}
+     *-
      << endl;
      )
 

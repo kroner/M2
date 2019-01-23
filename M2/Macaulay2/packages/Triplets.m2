@@ -6,42 +6,39 @@ newPackage(
 	Authors => {
 	     {Name => "Gunnar Floystad", Email => "nmagf@uib.no"}
 	      },
-   	Headline => "Triplets of degree sequences, and associated Betti diagrams
-and cohomology tables",
-   	DebuggingMode => false,
-	Reload => true
+     	PackageImports => {"BoijSoederberg"},
+   	Headline => "Triplets of degree sequences, and associated Betti diagrams and cohomology tables",
+   	DebuggingMode => false
    	)
 export {
-     Triplet,
-     strands,
-     strandsL,
-     conj,
+     "Triplet",
+     "strands",
+     "strandsL",
+     "conj",
      --
-     triplet,
-     rotForw,
-     rotBack,
-     toHomology,
-     toDegree,
-     dualHomTriplet,
-     type,     
+     "triplet",
+     "rotForw",
+     "rotBack",
+     "toHomology",
+     "toDegree",
+     "dualHomTriplet",
+     "type",     
      --
-     isDegreeTriplet,
-     isHomologyTriplet,
+     "isDegreeTriplet",
+     "isHomologyTriplet",
      --
-     Betti1,
-     Betti3,
-     BettiDiagram1,
-     BettiDiagram3,
+     "Betti1",
+     "Betti3",
+     "BettiDiagram1",
+     "BettiDiagram3",
      --     
-     binPol,
-     hilbCoeff, 
-     hilbPol,
-     chiPol,
+     "binPol",
+     "hilbCoeff", 
+     "hilbPol",
+     "chiPol",
      --
-     cohMatrix,
-     cohTable}
-  
-needsPackage("BoijSoederberg");
+     "cohMatrix",
+     "cohTable"}
 
 ----------------------------
 --New type:Triplet

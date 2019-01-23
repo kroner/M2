@@ -79,6 +79,31 @@ document {
      SeeAlso => {"packages", "an example of a package", needsPackage, load }
      }
 document {
+     Key => {(loadPackage,Package)},
+     Headline => "reload an already loaded package",
+     Usage => "loadPackage PACKAGE",
+     Inputs => {
+       "PACKAGE" => "the already loaded package"
+     },
+     Outputs => { Package => "the package just reloaded" },
+     Consequences => {{"Reloads the package PACKAGE"}},
+     PARA { "This reloads a package. ",
+       "The package ", TT "PACKAGE", " should already have been loaded at an earlier step, ",
+       "using a command such as ", TT "loadPackage(\"PACKAGE\")", " or ",
+       TT "needsPackage(\"PACKAGE\")", ", i.e., using the name of the package ",
+       "as a string. If that has been done, then this command will reload the package."},
+     PARA { "In fact this version of the command is simply a convenient short form ",
+     "of ", TT "loadPackage", " with the option ", TT "Reload", " set to ",
+     TT "true", ". All options of ", TT "loadPackage", " (other than ", TT "Reload",
+     ") are available." },
+     EXAMPLE lines ///
+       loadPackage "FirstPackage"
+       loadPackage FirstPackage
+     ///,
+     SeeAlso => {loadPackage, needsPackage}
+     }
+       
+document {
      Key => {(needsPackage,String),needsPackage,
 	  [needsPackage, LoadDocumentation],[needsPackage,Configuration],[needsPackage,DebuggingMode],[needsPackage,FileName]},
      Headline => "load a package if not already loaded",
@@ -135,37 +160,51 @@ document {
      SeeAlso => {"packages"}
      }
 
+undocumented (export,Symbol)
+
 document {
-     Key => {export, (export,List), (export,Symbol), (export,String)},
+     Key => {export, (export,List), (export,String)},
      Headline => "package item: export functions",
      Usage => "export {symbol1,symbol2,...}",
-     Inputs => { { TT "{symbol1,symbol2,...}", ", a list of symbols, strings, or options" } },
+     Inputs => { { TT "{symbol1,symbol2,...}", ", a list of strings or options" } },
      Outputs => {List => "the list of exported symbols"},
-     Consequences => {{"The symbols in the list, which should refer
+     Consequences => {{"The symbols whose names are in the list as strings, which should refer
 	  to functions or other symbols defined in the package, are made available 
 	  to the user of the package, and are marked non-mutable.  The strings are converted to symbols
-	  with those names in the dictionary of the package.  An option of the form ", TT "\"nam\" => sym", "
-	  creates a symbol with the name ", TT "\"nam\"", " that is a synonym of the symbol", TT "\"nam\" => sym", "."
+	  with those names in the dictionary of the package.  An option of the form ", TT "\"nam\" => \"sym\"", "
+	  creates a symbol with the name ", TT "nam", " that is a synonym of the symbol", TT "sym", "."
 	  }},
-     "A package can contain the code for many functions, only some 
-     of which should be made visible to the user.  The function ", TT "export", " 
-     allows one to specify which symbols are to be made visible.
-     For an example see ", TO "an example of a package", ".",
+     PARA {
+	  "A package can contain the code for many functions, only some 
+	  of which should be made visible to the user.  The function ", TT "export", " 
+	  allows one to specify which symbols are to be made visible.
+	  For an example see ", TO "an example of a package", "."
+	  },
+     PARA {
+	  "No single-letter symbol should be exported, as such symbols are reserved as variables for the user."
+	  },
      PARA{ "Use ", TO exportMutable, " to export symbols whose values the user is permitted to modify." },
      SeeAlso => {debug}
      }
 
+undocumented (exportMutable,Symbol)
+
 document {
-     Key => {exportMutable, (exportMutable,List), (exportMutable,Symbol)},
+     Key => {exportMutable, (exportMutable,List), (exportMutable,String)},
      Headline => "package item: export writable variables",
      Usage => "exportMutable(symbol1,symbol2,...)",
-     Inputs => { Nothing => { TT "(symbol1,symbol2,...)", ", a sequence of symbols"  } },
+     Inputs => { Nothing => { TT "(symbol1,symbol2,...)", ", a sequence of strings interpreted as names of symbols"  } },
      Outputs => {List => "the list of exported symbols"},
      Consequences => {
-	  {"the symbols in the sequence, which should refer to variables defined in the package,
+	  {"the names of symbols in the sequence, which should refer to variables defined in the package,
 	       are made available to the user of the package, in such a way that their values may be modified by the user"}
 	 },
-     "This function is needed much less frequently than ", TO export, ".  For an example, see ", TO "an example of a package",
+     PARA {
+     	  "This function is needed much less frequently than ", TO export, ".  For an example, see ", TO "an example of a package"
+	  },
+     PARA {
+	  "No single-letter symbol should be exported, as such symbols are reserved as variables for the user."
+	  },
      SeeAlso => {export, debug}
      }
 
@@ -203,7 +242,7 @@ document {
      associated to a package.",
      PARA{},
      "For an example, see ", TO "an example of a package",
-     Caveat => "When creating tests, try to insure that they run relatively quickly.",
+     Caveat => "When creating tests, try to ensure that they run relatively quickly.",
      SeeAlso => { beginDocumentation, assert }
      }
 
@@ -212,12 +251,12 @@ document {
 	  [newPackage,Headline],HomePage, [newPackage,HomePage],[newPackage,DebuggingMode],Email,Name,Configuration,[newPackage,Configuration],
 	  InfoDirSection, [newPackage,InfoDirSection],AuxiliaryFiles,[newPackage,AuxiliaryFiles],[newPackage,CacheExampleOutput],
 	  [newPackage,PackageExports], PackageExports, [newPackage,PackageImports], PackageImports,
-	  [newPackage,Certification], [newPackage,Reload]
+	  [newPackage,Certification], [newPackage,Reload], [newPackage,UseCachedExampleOutput], [newPackage, OptionalComponentsPresent]
 	  }, 
      Headline => "package item: start a new package",
-     Usage => "newPackage ( title )",
+     Usage => "newPackage ( pkgname )",
      Inputs => {
-	  "title" => "the name of the new package",
+	  "pkgname" => "the name of the new package",
 	  Version => String => {"the version number of the package.  A version number less than 1.0 indicates that the package is under
 	       development, and the user interface may change."},
 	  Date => String => "the date of this version of the package",
@@ -239,6 +278,13 @@ document {
 	       when ", TO "installPackage", " is called.  After the directory is created, it will necessary for the user also to specify
 	       ", TT "AuxiliaryFiles=>true", "."
 	       },
+     	  OptionalComponentsPresent => Boolean => {"whether all optional external components of the package are present on the system.
+	       Unless the user sets this option or ", TT "CacheExampleOutput", " to ", TT "true", ", this option will be initialized to 
+	       ", TT "true", "."},
+          UseCachedExampleOutput => Boolean => {"whether ", TO "installPackage", " should copy previously cached example output, if it is present and
+	       corresponds to the current example input for a node, rather than rerunning the examples, which might be important if optional external
+	       software is not present in the system.  This is relevant only when ", TT "CacheExampleOutput", " and ", TT "AuxiliaryFiles", " are set 
+	       to ", TT "true", ".  Unless set by the user, it is set to the negation of the value of ", TT "OptionalComponentsPresent", "."},
 	  Certification => List => {
 	       "the certification block inserted by the maintainers of ", EM "Macaulay2", " after the package has been accepted for publication by a 
 	       journal, such as The Journal of Software for Algebra and Geometry: ", EM "Macaulay2", ".  Authors should

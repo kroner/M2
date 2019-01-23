@@ -504,10 +504,14 @@ document {
      Usage => "html t",
      Inputs => { "t" },
      Outputs => { {"a string containing the result of converting ", TT "t", " to html"} },
-     "This method handles conversion to html, but only for a limited subset of TeX.
-     Nevertheless, it can be useful in documentation nodes.  It is useful to use
-     strings delimited by ", TO "///", ", because in strings delimited by ", TO "\"", ",
-     the backslashes often used in TeX must be doubled.",
+     Caveat => { "The algorithm used assumes that the html produced will be contained in a
+	  HTML P container, as can be produced with ", TO "PARA", ", especially if display
+	  math is used ($$ .. $$)." },
+     PARA {
+	  "This method handles conversion to html, but only for a limited subset of TeX.
+	  Nevertheless, it can be useful in documentation nodes.  It is useful to use
+	  strings delimited by ", TO "///", ", because in strings delimited by ", TO "\42", ",
+	  the backslashes often used in TeX must be doubled."},
      (
 	  a := ///TEX ////A formula: $a \times \ {b\over c^3}$/////////;
      	  EXAMPLE {a, "html oo" }
@@ -533,7 +537,7 @@ document {
 	       ///TEX ////\backslash \beta \beth \bullet \cap \cdots a \cong b \cos x + a \cup b, \daleth \delta \ell \emptyset/////////,
 	       ///TEX ////\epsilon \equiv \exists \forall \gamma \ge \gimel \ge \infty \in \int x \lambda \ldots \leftarrow a \le b \leq c/////////,
 	       ///TEX ////$4 < 5 < 6 > 3 > 2, \mu \mapsto \mu^2, \{x \mid x \in \ZZ, x \ne 0, x \cong{} 3 \mod\ 11\}$/////////,
-	       ///TEX ////\par 1 2\break 3 4 5\break 6 7 \nu \omega \oplus \otimes \partial \phi \break \pi x\prime/////////,
+	       ///TEX ////1 2\break 3 4 5\break 6 7 \nu \omega \oplus \otimes \partial \phi \break \pi x\prime/////////,
 	       ///TEX ////\prod_{i \in \ZZ} x_i/////////,
 	       ///TEX ////$\psi + \rho \rightarrow A\setminus B, \sigma, \sin 1.1, A \subset B, C \subseteq D, E \supset F, G \supseteq H$/////////,
 	       ///TEX ////\sum_{i=1}^n y_i/////////,
@@ -549,11 +553,17 @@ document {
      Usage => "TEX x",
      Inputs => {"x"},
      Outputs => {TEX},
-     TT "TEX s", " includes the string ", TT "s", ", presumably
-     containing TeX commands, in the TeX version of the documentation
-     containing this ", TO "hypertext", " item.  The main benefit of this is that in the HTML
-     and TeX versions of the documentation, good typesetting can done.  For details on the conversions
-     to HTML that are currently implemented, see ", TO (html, TEX), "."
+     PARA {
+	  TT "TEX s", " includes the string ", TT "s", ", presumably
+	  containing TeX commands, in the TeX version of the documentation
+	  containing this ", TO "hypertext", " item.  The main benefit of this is that in the HTML
+	  and TeX versions of the documentation, good typesetting can done.  For details on the conversions
+	  to HTML that are currently implemented, see ", TO (html, TEX), "."},
+     PARA {
+	  "This item should be used only within a paragraph created by ", TO "PARA", ", because in the html
+	  code it generates, the first element ends the enclosign paragraph to create the centered math
+	  display."
+	  }
      }
 
 document {
@@ -631,15 +641,16 @@ document {
 document {
      Key => HREF,
      Headline => "hypertext link",
-	Usage => "HREF{u,p}",
+	Usage => "HREF{u,p}\nHREF{u}",
 	Inputs => {
 		"u" => {"a url"},
 		"p" => {"a phrase"}
 		},
 	Outputs => {HREF => {}},
-     TT "HREF{u,p}", " encloses the phrase ", TT "p", " in a hypertext HREF link
-     pointing to the url ", TT "u", ".",
-     PARA{},
+     PARA {
+	  TT "HREF{u,p}", " encloses the phrase ", TT "p", " in a hypertext HREF link
+     	  pointing to the URL ", TT "u", ".  If ", TT "p", " is omitted, then ", TT "u", " is used as the phrase and as the URL."
+	  },
      SeeAlso => "hypertext"
      }
 
