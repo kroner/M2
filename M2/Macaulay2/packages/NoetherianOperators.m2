@@ -706,7 +706,7 @@ noetherianOperators (Ideal, Ideal) := List => opts -> (I, P) -> (
     local M; local M'; local K; local bd; local bx;
     numOps := -1;
     for i in 1..opts.DegreeLimit do (
-        bx = flatten entries sub(basis(0,i - 1,R),S);
+        bx = flatten entries basis(0,i - 1,S);
         bd = basis(0,i,S);
         M = diff(bd, transpose matrix {flatten (table(bx,SI_*,(i,j) -> i*j))});
         M' = sub(M, kP);
